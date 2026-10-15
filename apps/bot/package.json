@@ -1,0 +1,28 @@
+{
+  "name": "@ellie/bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bot Discord d'Ellie [BOT]",
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/index.js",
+    "deploy-commands": "node dist/scripts/deploy-commands.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test \"test/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@ellie/ai": "*",
+    "@ellie/database": "*",
+    "@napi-rs/canvas": "^1.0.11",
+    "discord.js": "^14.27.0",
+    "dotenv": "^18.0.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "tsx": "^4.23.15",
+    "typescript": "~5.6.3"
+  }
+}

@@ -1,0 +1,614 @@
+// Schéma de la base SQLite partagée par le bot Discord, le bot Twitch et le panel web.
+// Après toute modification : npm run db:generate && npm run db:push, puis rebuild et redémarrage des 3 services.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Administration et configuration globale
+// ---------------------------------------------------------------------------
+
+model AdminUser {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+/// Singleton (id = 1). Tous les secrets sont chiffrés en AES-256-GCM avec TOKEN_ENCRYPTION_KEY.
+model BotConfig {
+  id                          Int      @id @default(1)
+  clientId                    String   @default("")
+  tokenEncrypted              String   @default("")
+  clientSecretEncrypted       String?
+  twitchClientId              String?
+  twitchClientSecretEncrypted String?
+  /// Clé API Claude pour la personnalité IA « Ellie ».
+  anthropicApiKeyEncrypted    String?
+  updatedAt                   DateTime @updatedAt
+}
+
+/// Singleton (id = 1) : réglages éditoriaux modifiables dans le panel.
+model AppSettings {
+  id            Int      @id @default(1)
+  /// Surnom des fans de la streameuse (vide = « la communauté »).
+  communityName String   @default("")
+  updatedAt     DateTime @updatedAt
+}
+
+/// Rotation du statut du bot Discord.
+model BotActivity {
+  id              Int      @id @default(autoincrement())
+  /// PLAYING | WATCHING | LISTENING | COMPETING
+  type            String   @default("WATCHING")
+  /// Placeholders : {randomMember} {memberCount} {serverCount}
+  text            String
+  durationSeconds Int      @default(30)
+  order           Int      @default(0)
+  enabled         Boolean  @default(true)
+  createdAt       DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Serveurs Discord
+// ---------------------------------------------------------------------------
+
+model Guild {
+  id                       String  @id
+  name                     String?
+  prefix                   String  @default("!")
+  modLogChannelId          String?
+  /// OFF | LOW | MEDIUM | HIGH
+  autoModLevel             String  @default("OFF")
+  filterInvites            Boolean @default(false)
+  filterLinks              Boolean @default(false)
+  filterCaps               Boolean @default(false)
+  filterSpam               Boolean @default(false)
+  warnMuteThreshold        Int?
+  warnKickThreshold        Int?
+  warnBanThreshold         Int?
+  statsChannelId           String?
+  permanentInviteCode      String?
+  permanentInviteChannelId String?
+
+  logMessageDelete Boolean @default(false)
+  logMessageEdit   Boolean @default(false)
+  logMemberJoin    Boolean @default(false)
+  logMemberLeave   Boolean @default(false)
+
+  starboardChannelId String?
+  starboardEmoji     String  @default("⭐")
+  starboardThreshold Int     @default(3)
+
+  ticketCategoryId       String?
+  /// Rôles du staff (voient les tickets et peuvent les fermer), séparés par des virgules
+  ticketStaffRoleIds     String  @default("")
+  /// Rôles mentionnés à l'ouverture d'un ticket, séparés par des virgules
+  ticketPingRoleIds      String  @default("")
+  ticketPanelChannelId   String?
+  ticketPanelMessageId   String?
+  /// Salon où sont archivées les transcriptions des tickets fermés
+  ticketArchiveChannelId String?
+  /// Salon qui reçoit les signalements anonymes (sans le pseudo de l'auteur·ice)
+  reportChannelId        String?
+
+  /// Règlement à accepter : le bouton donne ce rôle (accès au serveur)
+  rulesRoleId      String?
+  rulesChannelId   String?
+  rulesMessageId   String?
+  rulesTitle       String  @default("📜 Règlement")
+  rulesContent     String  @default("")
+  rulesButtonLabel String  @default("J'ai lu et j'accepte le règlement")
+
+  hubVoiceChannelId      String?
+  hubChannelNameTemplate String  @default("🔊 Salon de {user}")
+
+  createdAt DateTime @default(now())
+
+  welcomeConfig      WelcomeConfig?
+  members            Member[]
+  levelRewards       LevelReward[]
+  moderationCases    ModerationCase[]
+  customCommands     CustomCommand[]
+  autoResponses      AutoResponse[]
+  giveaways          Giveaway[]
+  reactionRoleMsgs   ReactionRoleMessage[]
+  slashCommandToggle SlashCommandToggle[]
+  socialAlerts       SocialAlert[]
+  starboardPosts     StarboardPost[]
+  tickets            Ticket[]
+  tempVoiceChannels  TempVoiceChannel[]
+  polls              Poll[]
+  aiConfig           GuildAiConfig?
+}
+
+/// XP + économie, par serveur. `xp` est l'XP totale cumulée.
+model Member {
+  id       Int       @id @default(autoincrement())
+  guild    Guild     @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guildId  String
+  userId   String
+  xp       Int       @default(0)
+  level    Int       @default(0)
+  messages Int       @default(0)
+  lastXpAt DateTime?
+  balance  Int       @default(0)
+
+  @@unique([guildId, userId])
+  @@index([guildId, xp])
+  @@index([guildId, balance])
+}
+
+model LevelReward {
+  id      Int    @id @default(autoincrement())
+  guild   Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guildId String
+  level   Int
+  roleId  String
+
+  @@unique([guildId, level])
+}
+
+model ModerationCase {
+  id          Int       @id @default(autoincrement())
+  guild       Guild     @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guildId     String
+  userId      String
+  moderatorId String
+  /// WARN | MUTE | UNMUTE | KICK | BAN | UNBAN | AUTOMOD
+  type        String
+  reason      String?
+  expiresAt   DateTime?
+  resolved    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  @@index([guildId, userId])
+  @@index([type, resolved, expiresAt])
+}
+
+model WelcomeConfig {
+  id                  Int      @id @default(autoincrement())
+  guild               Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guildId             String   @unique
+  channelId           String?
+  message             String   @default("{user.mention} a rejoint le serveur {server.name} !")
+  imageEnabled        Boolean  @default(true)
+  imageText           String   @default("Bienvenue {user} !")
+  imageBackgroundUrl  String?
+  dmEnabled           Boolean  @default(false)
+  dmMessage           String   @default("Bienvenue sur {server.name}, {user.name} !")
+  reactionRoleEnabled Boolean  @default(false)
+  reactionRoleId      String?
+  autoRoleEnabled     Boolean  @default(false)
+  autoRoleId          String?
+  updatedAt           DateTime @updatedAt
+}
+
+model AutoResponse {
+  id        Int      @id @default(autoincrement())
+  guild     Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guildId   String
+  trigger   String
+  response  String
+  /// CONTAINS | EXACT
+  matchType String   @default("CONTAINS")
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([guildId])
+}
+
+model CustomCommand {
+  id              Int                   @id @default(autoincrement())
+  guild           Guild                 @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guildId         String
+  name            String
+  response        String
+  cooldownSeconds Int                   @default(0)
+  lastUsedAt      DateTime?
+  createdAt       DateTime              @default(now())
+  actions         CustomCommandAction[]
+
+  @@unique([guildId, name])
+}
+
+/// Arbre d'actions (blocs imbriqués) d'une commande personnalisée.
+model CustomCommandAction {
+  id              Int                   @id @default(autoincrement())
+  customCommand   CustomCommand         @relation(fields: [customCommandId], references: [id], onDelete: Cascade)
+  customCommandId Int
+  parent          CustomCommandAction?  @relation("ActionChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  parentId        Int?
+  children        CustomCommandAction[] @relation("ActionChildren")
+  /// THEN | ELSE | BODY pour les enfants de IF / REPEAT
+  branch          String?
+  order           Int
+  type            String
+  /// JSON
+  config          String
+  createdAt       DateTime              @default(now())
+
+  @@index([customCommandId])
+  @@index([parentId])
+}
+
+/// Variables persistantes par serveur : {var:nom}
+model CustomCommandVariable {
+  id        Int      @id @default(autoincrement())
+  guildId   String
+  name      String
+  value     String   @default("")
+  updatedAt DateTime @updatedAt
+
+  @@unique([guildId, name])
+}
+
+model Giveaway {
+  id          Int             @id @default(autoincrement())
+  guild       Guild           @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guildId     String
+  channelId   String
+  messageId   String?
+  prize       String
+  winnerCount Int             @default(1)
+  hostId      String
+  endsAt      DateTime
+  ended       Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  entries     GiveawayEntry[]
+
+  @@index([ended, endsAt])
+}
+
+model GiveawayEntry {
+  id         Int      @id @default(autoincrement())
+  giveaway   Giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  giveawayId Int
+  userId     String
+  createdAt  DateTime @default(now())
+
+  @@unique([giveawayId, userId])
+}
+
+/// Panneau de rôles : un message Discord composé d'un ou plusieurs groupes.
+model ReactionRoleMessage {
+  id          Int                 @id @default(autoincrement())
+  guild       Guild               @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guildId     String
+  channelId   String
+  messageId   String?
+  title       String              @default("🎀 Choisis tes rôles")
+  description String              @default("")
+  /// Couleur de l'embed (#RRVVBB)
+  color       String              @default("#FF7EB6")
+  /// true = message à (re)publier / éditer par la boucle de synchronisation
+  dirty       Boolean             @default(true)
+  groups      ReactionRoleGroup[]
+  createdAt   DateTime            @default(now())
+
+  @@index([guildId])
+}
+
+/// Groupe de rôles d'un panneau. MENU : un bouton ouvre un menu à cocher (visible par le membre seul) ;
+/// BUTTONS : un bouton par rôle, qui ajoute ou retire le rôle.
+model ReactionRoleGroup {
+  id        Int                  @id @default(autoincrement())
+  panel     ReactionRoleMessage  @relation(fields: [panelId], references: [id], onDelete: Cascade)
+  panelId   Int
+  title     String
+  emoji     String?
+  help      String               @default("")
+  /// MENU | BUTTONS
+  display   String               @default("MENU")
+  /// false = un seul rôle du groupe à la fois (ex. couleur de pseudo)
+  multiple  Boolean              @default(true)
+  order     Int                  @default(0)
+  /// Clé de l'ancien bot (les anciens boutons « roles:ouvrir:<clé> » continuent de fonctionner)
+  legacyKey String?
+  options   ReactionRoleOption[]
+
+  @@index([panelId])
+}
+
+model ReactionRoleOption {
+  id          Int               @id @default(autoincrement())
+  group       ReactionRoleGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId     Int
+  roleId      String
+  label       String
+  emoji       String?
+  description String?
+  order       Int               @default(0)
+
+  @@unique([groupId, roleId])
+}
+
+model StarboardPost {
+  id                 Int      @id @default(autoincrement())
+  guild              Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guildId            String
+  originalMessageId  String   @unique
+  originalChannelId  String
+  starboardMessageId String
+  starCount          Int      @default(0)
+  createdAt          DateTime @default(now())
+
+  @@index([guildId])
+}
+
+model Ticket {
+  id        Int       @id @default(autoincrement())
+  guild     Guild     @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guildId   String
+  channelId String
+  userId    String
+  /// OPEN | CLOSED
+  status    String    @default("OPEN")
+  createdAt DateTime  @default(now())
+  closedAt  DateTime?
+
+  @@index([guildId, status])
+}
+
+model SocialAlert {
+  id               Int                    @id @default(autoincrement())
+  guild            Guild                  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guildId          String
+  /// YOUTUBE | TWITCH
+  platform         String
+  /// ID de chaîne YouTube (UC…) ou pseudo Twitch
+  channelRef       String
+  discordChannelId String
+  message          String                 @default("{channel} vient de publier du nouveau contenu ! {url}")
+  /// TWITCH uniquement : id du dernier live annoncé
+  lastSeenId       String?
+  /// Date de la première vérification (historique mémorisé sans annonce)
+  initializedAt    DateTime?
+  createdAt        DateTime               @default(now())
+  notifiedVideos   NotifiedYoutubeVideo[]
+
+  @@unique([guildId, platform, channelRef])
+}
+
+/// Historique anti-doublon + rattrapage YouTube.
+model NotifiedYoutubeVideo {
+  id         Int         @id @default(autoincrement())
+  alert      SocialAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  alertId    Int
+  videoId    String
+  notifiedAt DateTime    @default(now())
+
+  @@unique([alertId, videoId])
+  @@index([alertId])
+}
+
+/// Activer / désactiver une commande slash par serveur.
+model SlashCommandToggle {
+  id      Int     @id @default(autoincrement())
+  guild   Guild   @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guildId String
+  name    String
+  enabled Boolean @default(true)
+
+  @@unique([guildId, name])
+}
+
+model Reminder {
+  id        Int      @id @default(autoincrement())
+  guildId   String
+  channelId String
+  userId    String
+  message   String
+  remindAt  DateTime
+  sent      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([remindAt, sent])
+}
+
+/// Salons vocaux personnalisés suivis par le bot.
+model TempVoiceChannel {
+  id        Int      @id @default(autoincrement())
+  guild     Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guildId   String
+  channelId String   @unique
+  ownerId   String
+  createdAt DateTime @default(now())
+
+  @@index([guildId])
+}
+
+/// Sondages /poll (votes persistés pour survivre aux redémarrages).
+model Poll {
+  id        Int        @id @default(autoincrement())
+  guild     Guild      @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guildId   String
+  channelId String
+  messageId String?
+  question  String
+  /// JSON : tableau de libellés
+  options   String
+  authorId  String
+  createdAt DateTime   @default(now())
+  votes     PollVote[]
+}
+
+model PollVote {
+  id     Int    @id @default(autoincrement())
+  poll   Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  pollId Int
+  userId String
+  option Int
+
+  @@unique([pollId, userId])
+}
+
+// ---------------------------------------------------------------------------
+// Personnalité IA « Ellie »
+// ---------------------------------------------------------------------------
+
+model GuildAiConfig {
+  id                  Int      @id @default(autoincrement())
+  guild               Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guildId             String   @unique
+  enabled             Boolean  @default(false)
+  model               String   @default("claude-opus-5-5")
+  /// low | medium | high
+  effort              String   @default("low")
+  /// Liste séparée par des virgules ; vide = AUCUN salon
+  allowedChannelIds   String   @default("")
+  /// Membres qui ne peuvent pas déclencher Ellie
+  blockedUserIds      String   @default("")
+  replyToReplies      Boolean  @default(true)
+  keywordTrigger      Boolean  @default(false)
+  userCooldownSeconds Int      @default(20)
+  channelMaxPerMinute Int      @default(6)
+  dailyReplyCap       Int      @default(200)
+  contextMessages     Int      @default(10)
+  serverLore          String   @default("")
+  updatedAt           DateTime @updatedAt
+}
+
+/// Consommation quotidienne (plafond + estimation du coût).
+model AiDailyUsage {
+  id               Int     @id @default(autoincrement())
+  /// ID du serveur Discord, ou "TWITCH"
+  scope            String
+  /// AAAA-MM-JJ (fuseau Europe/Paris)
+  date             String
+  replies          Int     @default(0)
+  inputTokens      Int     @default(0)
+  outputTokens     Int     @default(0)
+  cacheReadTokens  Int     @default(0)
+  cacheWriteTokens Int     @default(0)
+  costMicroUsd     Int     @default(0)
+  capNoticeSent    Boolean @default(false)
+
+  @@unique([scope, date])
+}
+
+// ---------------------------------------------------------------------------
+// Twitch
+// ---------------------------------------------------------------------------
+
+/// Singleton (id = 1).
+model TwitchBotConfig {
+  id                      Int       @id @default(1)
+  username                String?
+  channelName             String?
+  clientId                String?
+  clientSecretEncrypted   String?
+  accessTokenEncrypted    String?
+  refreshTokenEncrypted   String?
+  tokenExpiresAt          DateTime?
+  /// Serveur Discord lié (logs, lien d'invitation, classement)
+  linkedGuildId           String?
+  autoModLevel            String    @default("OFF")
+  prefix                  String    @default("!")
+  enabled                 Boolean   @default(false)
+  filterLinksEnabled      Boolean   @default(false)
+  linkWhitelist           String    @default("")
+  filterCapsEnabled       Boolean   @default(false)
+  filterEmotesEnabled     Boolean   @default(false)
+  maxEmotes               Int       @default(5)
+  filterSymbolsEnabled    Boolean   @default(false)
+  filterRepetitionEnabled Boolean   @default(false)
+  filterSharedChatEnabled Boolean   @default(false)
+  raidShoutoutEnabled     Boolean   @default(true)
+  announceFollows         Boolean   @default(false)
+  announceSubs            Boolean   @default(false)
+  lastKnownFollowAt       DateTime?
+  lastKnownSubCount       Int?
+  aiEnabled               Boolean   @default(false)
+  aiModel                 String    @default("claude-opus-5-5")
+  aiUserCooldownSeconds   Int       @default(30)
+  aiGlobalCooldownSeconds Int       @default(10)
+  aiDailyReplyCap         Int       @default(100)
+  updatedAt               DateTime  @updatedAt
+}
+
+model TwitchCommand {
+  id              Int       @id @default(autoincrement())
+  name            String    @unique
+  response        String
+  cooldownSeconds Int       @default(5)
+  uses            Int       @default(0)
+  lastUsedAt      DateTime?
+  createdAt       DateTime  @default(now())
+}
+
+model TwitchModerationCase {
+  id        Int      @id @default(autoincrement())
+  username  String
+  /// AVERTISSEMENT | TIMEOUT | BAN
+  type      String
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([username])
+}
+
+model TwitchTimer {
+  id              Int       @id @default(autoincrement())
+  name            String
+  message         String
+  intervalMinutes Int       @default(10)
+  minMessages     Int       @default(0)
+  enabled         Boolean   @default(true)
+  lastSentAt      DateTime?
+  createdAt       DateTime  @default(now())
+}
+
+model TwitchGiveaway {
+  id             Int                   @id @default(autoincrement())
+  keyword        String
+  prize          String
+  /// ACTIVE | ENDED | CANCELLED
+  status         String                @default("ACTIVE")
+  winnerUsername String?
+  startAnnounced Boolean               @default(false)
+  endAnnounced   Boolean               @default(false)
+  createdAt      DateTime              @default(now())
+  endedAt        DateTime?
+  entries        TwitchGiveawayEntry[]
+
+  @@index([status])
+}
+
+model TwitchGiveawayEntry {
+  id         Int            @id @default(autoincrement())
+  giveaway   TwitchGiveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  giveawayId Int
+  username   String
+  createdAt  DateTime       @default(now())
+
+  @@unique([giveawayId, username])
+}
+
+model TwitchDailyStat {
+  id       Int    @id @default(autoincrement())
+  /// AAAA-MM-JJ (fuseau Europe/Paris)
+  date     String @unique
+  messages Int    @default(0)
+  commands Int    @default(0)
+  timeouts Int    @default(0)
+}
+
+model TwitchChatterStat {
+  id           Int       @id @default(autoincrement())
+  username     String    @unique
+  messages     Int       @default(0)
+  xp           Int       @default(0)
+  level        Int       @default(0)
+  lastXpAt     DateTime?
+  watchMinutes Int       @default(0)
+  lastSeenAt   DateTime  @default(now())
+
+  @@index([xp])
+}

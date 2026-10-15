@@ -1,0 +1,43 @@
+{
+  "name": "@ellie/database",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Base SQLite (Prisma) et logique partagée d'Ellie [BOT]",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./shared": {
+      "types": "./dist/shared.d.ts",
+      "default": "./dist/shared.js"
+    }
+  },
+  "files": [
+    "dist",
+    "prisma"
+  ],
+  "scripts": {
+    "generate": "prisma generate",
+    "push": "prisma db push --skip-generate",
+    "studio": "prisma studio",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "reset-password": "node dist/scripts/reset-admin-password.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^18.0.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "prisma": "^5.22.0",
+    "tsx": "^4.23.15",
+    "typescript": "~5.6.3"
+  }
+}

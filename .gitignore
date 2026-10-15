@@ -1,0 +1,30 @@
+# Dépendances et builds
+node_modules/
+dist/
+.next/
+*.tsbuildinfo
+
+# Secrets et environnements (jamais versionnés)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Base de données SQLite
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Divers
+.DS_Store
+Thumbs.db
+*.log
+coverage/
+backups/
+ellie-bot.tar.gz
+
+# Fichiers locaux (non versionnés)
+.claude/
+PROMPT-NOUVEAU-BOT.md

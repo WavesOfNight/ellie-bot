@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background: linear-gradient(160deg, #f7f5ff 0%, #e1f5ee 45%, #fbeaf0 100%);
+  background-attachment: fixed;
+  color: #26215c;
+  overflow-x: hidden;
+}
+
+@layer components {
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+  }
+
+  .bubble-btn {
+    transition:
+      transform 0.15s ease,
+      box-shadow 0.15s ease,
+      background-color 0.15s ease;
+  }
+  .bubble-btn:hover:not(:disabled) {
+    transform: translateY(-1px) scale(1.02);
+  }
+  .bubble-btn:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+  .bubble-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .field {
+    @apply w-full rounded-xl border border-lavender-200 bg-white/80 px-3 py-2 text-sm text-lavender-900 outline-none transition placeholder:text-lavender-300 focus:border-lavender-400 focus:ring-2 focus:ring-lavender-200;
+  }
+
+  .label {
+    @apply mb-1 block text-sm font-semibold text-lavender-800;
+  }
+
+  .hint {
+    @apply mt-1 text-xs text-lavender-600;
+  }
+}

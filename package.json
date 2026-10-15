@@ -1,0 +1,38 @@
+{
+  "name": "ellie-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ellie [BOT] — bot Discord, bot Twitch, panel web et personnalité IA pour la communauté de missTsune",
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "db:generate": "npm run generate --workspace=@ellie/database",
+    "db:push": "npm run push --workspace=@ellie/database",
+    "db:studio": "npm run studio --workspace=@ellie/database",
+    "db:build": "npm run generate --workspace=@ellie/database && npm run build --workspace=@ellie/database",
+    "db:test": "npm test --workspace=@ellie/database",
+    "ai:build": "npm run build --workspace=@ellie/ai",
+    "ai:test": "npm test --workspace=@ellie/ai",
+    "bot:dev": "npm run dev --workspace=@ellie/bot",
+    "bot:build": "npm run build --workspace=@ellie/bot",
+    "bot:deploy": "npm run deploy-commands --workspace=@ellie/bot",
+    "bot:start": "npm run start --workspace=@ellie/bot",
+    "web:dev": "npm run dev --workspace=@ellie/web",
+    "web:build": "npm run build --workspace=@ellie/web",
+    "web:start": "npm run start --workspace=@ellie/web",
+    "twitch:dev": "npm run dev --workspace=@ellie/twitch-bot",
+    "twitch:build": "npm run build --workspace=@ellie/twitch-bot",
+    "twitch:start": "npm run start --workspace=@ellie/twitch-bot",
+    "build": "npm run db:build && npm run ai:build && npm run bot:build && npm run twitch:build && npm run web:build",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run db:test && npm run ai:test && npm test --workspace=@ellie/bot && npm test --workspace=@ellie/twitch-bot && npm test --workspace=@ellie/web",
+    "admin:reset-password": "npm run reset-password --workspace=@ellie/database --"
+  }
+}
