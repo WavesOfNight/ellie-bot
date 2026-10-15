@@ -97,6 +97,21 @@ location ~ ^/ {
 
 4. **OK** (Plesk vérifie la configuration avant de l'appliquer).
 
+### Si le domaine passe par Cloudflare (nuage orange) — c'est le cas de `reads-records.com`
+
+En mode SSL « Flexible », Cloudflare contacte ton serveur en HTTP, Plesk le renvoie vers HTTPS, et le navigateur tourne en rond (**ERR_TOO_MANY_REDIRECTS**). Le serveur a un vrai certificat Let's Encrypt : il faut demander à Cloudflare de l'utiliser.
+
+Cloudflare → `reads-records.com` → **Rules** (Règles) → **Configuration Rules** (Règles de configuration) → **Create rule** :
+
+1. Nom : `Ellie - SSL strict` ;
+2. **Custom filter expression** : *Hostname* · *equals* · `ellie.reads-records.com` ;
+3. Paramètre **SSL** → **Full (strict)** ;
+4. **Deploy**.
+
+Cette règle ne touche que `ellie.reads-records.com` (tes autres sous-domaines gardent leur réglage). Si tous tes sites derrière `reads-records.com` ont un certificat sur leur serveur, tu peux aussi passer toute la zone en **Full (strict)** dans **SSL/TLS → Overview**.
+
+Recharge ensuite la page dans une **fenêtre de navigation privée** (Chrome garde parfois l'ancienne redirection en cache).
+
 Ouvre **https://ellie.reads-records.com** → page **« Bienvenue ! »** → crée ton **compte administrateur** (cette page disparaît ensuite).
 
 ## Étape 4 — Passer de l'ancien bot à Ellie
@@ -155,6 +170,7 @@ Elle récupère la dernière version (`git pull`), sauvegarde la base, réinstal
 | Symptôme | Solution |
 |---|---|
 | **502 Bad Gateway** | `systemctl status ellie-web` puis `journalctl -u ellie-web -n 50`. Vérifie que le port des directives nginx est celui du fichier `nginx-directives.generated.conf`. |
+| **ERR_TOO_MANY_REDIRECTS** (domaine derrière Cloudflare) | Cloudflare est en mode SSL « Flexible » : passe `ellie.reads-records.com` en **Full (strict)** (voir l'étape 3), puis teste en navigation privée. |
 | La page par défaut de Plesk s'affiche | Les directives ne sont pas appliquées : recolle-les et décoche les deux options « fichiers statiques ». |
 | Retour en boucle sur /login | `/opt/ellie-bot/apps/web/.env.local` doit contenir `NEXTAUTH_URL="https://ellie.reads-records.com"`, puis `systemctl restart ellie-web`. |
 | Le bot Discord ne se connecte pas | `journalctl -u ellie-bot -n 50` : token invalide, intents non activés, ou l'ancien bot tourne encore avec le même token. |
