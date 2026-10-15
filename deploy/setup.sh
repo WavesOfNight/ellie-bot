@@ -5,7 +5,7 @@
 # Usage (en root) :
 #   DOMAIN=ellie.mondomaine.fr bash /opt/ellie-bot/deploy/setup.sh
 # Options :
-#   REPO_URL=https://github.com/moi/ellie-bot.git   clone le dépôt si /opt/ellie-bot n'existe pas encore
+#   REPO_URL=…                                      dépôt à cloner si /opt/ellie-bot est vide (défaut : dépôt GitHub public)
 #   WEB_PORT=3100                                   port local du panel (défaut : premier port libre à partir de 3000)
 #   APP_DIR=/opt/ellie-bot  APP_USER=ellie
 #
@@ -20,7 +20,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/common.sh"
 
 DOMAIN="${DOMAIN:-}"
-REPO_URL="${REPO_URL:-}"
+REPO_URL="${REPO_URL:-https://github.com/WavesOfNight/ellie-bot.git}"
 
 require_root
 [[ -n "${DOMAIN}" ]] || die "Indique le domaine du panel : DOMAIN=ellie.mondomaine.fr bash $0"
@@ -84,8 +84,8 @@ if ! id -u "${APP_USER}" >/dev/null 2>&1; then
   ok "Utilisateur ${APP_USER} créé."
 fi
 if [[ ! -f "${APP_DIR}/package.json" ]]; then
-  [[ -n "${REPO_URL}" ]] || die "Code introuvable dans ${APP_DIR} : envoie l'archive (voir INSTALL-PLESK.md) ou indique REPO_URL=…"
-  git clone --depth 1 "${REPO_URL}" "${APP_DIR}"
+  info "Clonage de ${REPO_URL}…"
+  git clone "${REPO_URL}" "${APP_DIR}"
 fi
 install -d -m 750 "${APP_DIR}/data" "${APP_DIR}/backups"
 chown -R "${APP_USER}:${APP_USER}" "${APP_DIR}"

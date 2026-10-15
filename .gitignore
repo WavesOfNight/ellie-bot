@@ -28,3 +28,4 @@ ellie-bot.tar.gz
 # Fichiers locaux (non versionnés)
 .claude/
 PROMPT-NOUVEAU-BOT.md
+deploy/plesk/nginx-directives.generated.conf

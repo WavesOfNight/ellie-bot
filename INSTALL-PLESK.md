@@ -21,35 +21,24 @@ Compte 20 à 30 minutes la première fois.
 
 > Si la zone DNS de `reads-records.com` est gérée par Plesk, l'enregistrement `ellie` est créé tout seul. Sinon, ajoute chez ton registrar un enregistrement **A** `ellie` → `217.154.27.174`.
 
-## Étape 2 — Préparer l'archive sur ton PC
+## Étape 2 — Installer depuis le terminal SSH de Plesk
 
-Dans le dossier du projet, ouvre PowerShell et lance :
+Le code est sur GitHub (dépôt public <https://github.com/WavesOfNight/ellie-bot>) : le serveur le récupère directement, rien à envoyer depuis ton PC.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File deploy\pack.ps1
-```
+Ouvre **Extensions → SSH Terminal** (tu es en `root`) et colle ces commandes **une par une**.
 
-Ça crée **`ellie-bot.tar.gz`** (environ 0,2 Mo : ni dépendances, ni base, ni secrets).
-
-## Étape 3 — Envoyer l'archive sur le serveur
-
-**Avec le gestionnaire de fichiers de Plesk (le plus simple) :**
-
-1. **Sites Web et domaines** → `reads-records.com` → **Gestionnaire de fichiers**.
-2. Reste **à la racine** (le dossier qui contient `httpdocs`, pas dedans) → **Téléverser** → choisis `ellie-bot.tar.gz`.
-
-Le fichier arrive dans `/var/www/vhosts/reads-records.com/ellie-bot.tar.gz` (non accessible depuis le web).
-
-*Alternative depuis PowerShell :* `scp ellie-bot.tar.gz root@217.154.27.174:/root/` (adapte alors le chemin à l'étape suivante).
-
-## Étape 4 — Installer depuis le terminal SSH de Plesk
-
-Ouvre **Extensions → SSH Terminal** (tu es en `root`). Colle ces commandes une par une.
-
-Extraire l'archive (puis la supprimer) :
+Vérifier que Git est présent (affiche une version) :
 
 ```bash
-mkdir -p /opt/ellie-bot && tar -xzf /var/www/vhosts/reads-records.com/ellie-bot.tar.gz -C /opt/ellie-bot && rm /var/www/vhosts/reads-records.com/ellie-bot.tar.gz
+git --version
+```
+
+*(S'il est absent : `apt-get update && apt-get install -y git` sur Ubuntu/Debian, ou `dnf install -y git` sur AlmaLinux/Rocky.)*
+
+Télécharger le projet :
+
+```bash
+git clone https://github.com/WavesOfNight/ellie-bot.git /opt/ellie-bot
 ```
 
 Lancer l'installation en arrière-plan (elle continue même si l'onglet du terminal se ferme) :
@@ -80,7 +69,7 @@ Quand tu vois **« Installation terminée ✅ »**, fais Ctrl+C. Tu peux réaffi
 cat /opt/ellie-bot/deploy/plesk/nginx-directives.generated.conf
 ```
 
-## Étape 5 — Brancher le domaine sur le panel (nginx de Plesk)
+## Étape 3 — Brancher le domaine sur le panel (nginx de Plesk)
 
 **Sites Web et domaines** → `ellie.reads-records.com` → **Paramètres Apache & nginx** :
 
@@ -108,7 +97,7 @@ location ~ ^/ {
 
 Ouvre **https://ellie.reads-records.com** → page **« Bienvenue ! »** → crée ton **compte administrateur** (cette page disparaît ensuite).
 
-## Étape 6 — Passer de l'ancien bot à Ellie
+## Étape 4 — Passer de l'ancien bot à Ellie
 
 **Recommandé : garde la même application Discord que l'ancien bot.** Ainsi, ses messages déjà publiés (règlement, choix des rôles, aide) continuent de fonctionner et sont simplement **mis à jour** par Ellie — pas besoin de réinviter le bot.
 
@@ -127,7 +116,7 @@ Ouvre **https://ellie.reads-records.com** → page **« Bienvenue ! »** → cr�
 >
 > **Si tu crées une nouvelle application Discord** à la place : invite-la avec le lien affiché dans Paramètres, place son rôle **tout en haut**, puis fais l'import ci-dessus — Ellie remplacera les anciens messages par les siens.
 
-## Étape 7 — Le reste (facultatif)
+## Étape 5 — Le reste (facultatif)
 
 - **Modules** : panel → ton serveur → Bienvenue, Modération, Niveaux, Commandes Perso, Giveaways, Starboard, Alertes… Tout est pris en compte en moins de 5 secondes.
 - **Bot Twitch** : crée une application sur <https://dev.twitch.tv/console/apps> (catégorie *Chat Bot*, redirection `https://ellie.reads-records.com/api/twitch/callback`), puis panel → **Bot Twitch → Paramètres** → **Se connecter avec Twitch** avec le compte du bot → `/mod nom_du_bot` dans le chat de missTsune → **Modération** → **Bot Twitch activé**.
@@ -149,14 +138,15 @@ Ouvre **https://ellie.reads-records.com** → page **« Bienvenue ! »** → cr�
 
 ## Mettre à jour plus tard
 
-1. Sur ton PC : `powershell -ExecutionPolicy Bypass -File deploy\pack.ps1`, puis téléverse `ellie-bot.tar.gz` comme à l'étape 3.
-2. Dans le terminal SSH de Plesk :
+Quand une nouvelle version est poussée sur GitHub, une seule commande dans le terminal SSH de Plesk :
 
 ```bash
-tar -xzf /var/www/vhosts/reads-records.com/ellie-bot.tar.gz -C /opt/ellie-bot && rm /var/www/vhosts/reads-records.com/ellie-bot.tar.gz && bash /opt/ellie-bot/deploy/update.sh
+bash /opt/ellie-bot/deploy/update.sh
 ```
 
-`update.sh` sauvegarde la base, réinstalle, met à jour le schéma, recompile et **redémarre les trois services**. Tes `.env` et ta base ne sont jamais écrasés.
+Elle récupère la dernière version (`git pull`), sauvegarde la base, réinstalle, met à jour le schéma, recompile et **redémarre les trois services**. Tes `.env` et ta base ne sont jamais touchés.
+
+> Ne lance pas de commande `git` à la main en root dans `/opt/ellie-bot` : le dossier appartient à l'utilisateur `ellie`, `update.sh` s'en charge.
 
 ## Dépannage
 
