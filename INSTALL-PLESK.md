@@ -13,13 +13,15 @@ Compte 20 à 30 minutes la première fois.
 
 ---
 
-## Étape 1 — Créer le sous-domaine dans Plesk
+## Étape 1 — Créer le domaine dans Plesk
 
-1. **Sites Web et domaines** → `reads-records.com` → **Ajouter un sous-domaine** → nom : `ellie`.
-2. Dans les **Paramètres d'hébergement** de `ellie.reads-records.com` : coche **Redirection permanente 301 de HTTP vers HTTPS** (et tu peux décocher PHP, inutile ici).
-3. **Certificats SSL/TLS** → **Let's Encrypt** → installe le certificat pour `ellie.reads-records.com`.
+`reads-records.com` n'est pas hébergé dans ce Plesk : on y ajoute donc **`ellie.reads-records.com` comme un domaine à part entière** (et non comme un sous-domaine).
 
-> Si la zone DNS de `reads-records.com` est gérée par Plesk, l'enregistrement `ellie` est créé tout seul. Sinon, ajoute chez ton registrar un enregistrement **A** `ellie` → `217.154.27.174`.
+1. **Websites & Domains** → **Add Domain** → nom de domaine : `ellie.reads-records.com` → **Blank website** / hébergement web classique. Ne coche pas Let's Encrypt à cette étape.
+2. **SSL/TLS Certificates** du domaine → **Let's Encrypt** → **Install**, en **décochant** les options « www » et « wildcard » (seul `ellie.reads-records.com` pointe vers le serveur).
+3. **Hosting Settings** → coche **Permanent SEO-safe 301 redirect from HTTP to HTTPS** (tu peux décocher PHP, inutile ici).
+
+> Le DNS reste chez ton registrar : l'enregistrement **A** `ellie` → `217.154.27.174` doit exister (si `http://ellie.reads-records.com` affiche la page par défaut de Plesk, c'est bon). L'avertissement « DNS needs attention » de Plesk peut être ignoré pour ce domaine.
 
 ## Étape 2 — Installer depuis le terminal SSH de Plesk
 
