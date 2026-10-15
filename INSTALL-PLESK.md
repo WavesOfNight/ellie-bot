@@ -137,7 +137,7 @@ Ouvre **https://ellie.reads-records.com** → page **« Bienvenue ! »** → cr�
 
 - **Modules** : panel → ton serveur → Bienvenue, Modération, Niveaux, Commandes Perso, Giveaways, Starboard, Alertes… Tout est pris en compte en moins de 5 secondes.
 - **Bot Twitch** : crée une application sur <https://dev.twitch.tv/console/apps> (catégorie *Chat Bot*, redirection `https://ellie.reads-records.com/api/twitch/callback`), puis panel → **Bot Twitch → Paramètres** → **Se connecter avec Twitch** avec le compte du bot → `/mod nom_du_bot` dans le chat de missTsune → **Modération** → **Bot Twitch activé**.
-- **Ellie (IA)** : panel → **Paramètres** → clé API Anthropic, puis page **Ellie (IA)** du serveur → active-la et coche au moins un salon.
+- **Ellie (IA)** : dans la console Anthropic, crée un **espace de travail** (workspace) « Ellie » avec un plafond de dépenses mensuel, puis une **clé API rattachée à cet espace** (une clé non rattachée provoque l'erreur « not scoped to a workspace »). Panel → **Paramètres** → colle la clé, puis page **Ellie (IA)** du serveur → active-la et coche au moins un salon.
 
 ---
 

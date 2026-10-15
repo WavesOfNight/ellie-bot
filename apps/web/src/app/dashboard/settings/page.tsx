@@ -91,7 +91,7 @@ export default async function SettingsPage() {
         >
           <div className="mb-4">{status.anthropicConfigured ? <Badge tone="aqua">Clé API configurée ✅</Badge> : <Badge tone="coral">Aucune clé</Badge>}</div>
           <ActionForm action={saveAnthropicKeyAction} className="space-y-4" resetOnSuccess>
-            <Field label="Clé API Anthropic" htmlFor="anthropicApiKey" hint="À créer sur console.anthropic.com → API Keys.">
+            <Field label="Clé API Anthropic" htmlFor="anthropicApiKey" hint="Console Anthropic → crée la clé dans un espace de travail (workspace) dédié, avec un plafond de dépenses.">
               <input id="anthropicApiKey" name="anthropicApiKey" type="password" autoComplete="off" placeholder="sk-ant-…" className="field" />
             </Field>
             <SubmitButton variant="secondary">Enregistrer la clé</SubmitButton>
