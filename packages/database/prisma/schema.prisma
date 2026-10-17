@@ -190,6 +190,8 @@ model WelcomeConfig {
   message             String   @default("{user.mention} a rejoint le serveur {server.name} !")
   imageEnabled        Boolean  @default(true)
   imageText           String   @default("Bienvenue {user} !")
+  /// Couleur du texte de l'image (#RRVVBB)
+  imageTextColor      String   @default("#3C3489")
   imageBackgroundUrl  String?
   dmEnabled           Boolean  @default(false)
   dmMessage           String   @default("Bienvenue sur {server.name}, {user.name} !")

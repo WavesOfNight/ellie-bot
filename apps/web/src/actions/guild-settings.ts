@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma, safeFetch, setSlashCommandEnabled, UnsafeUrlError } from "@ellie/database";
-import { AUTOMOD_LEVELS, SLASH_COMMAND_NAMES } from "@ellie/database/shared";
+import { AUTOMOD_LEVELS, DEFAULT_WELCOME_TEXT_COLOR, isHexColor, SLASH_COMMAND_NAMES } from "@ellie/database/shared";
 import { checkbox, FormError, handle, integer, ok, oneOf, optionalInteger, optionalText, snowflake, text, type ActionState } from "@/lib/forms";
 import { guildFromForm, guildIdSets } from "@/lib/guild";
 
@@ -27,11 +27,14 @@ export async function saveWelcomeAction(_state: ActionState, form: FormData): Pr
     const ids = await guildIdSets(guildId);
     const backgroundUrl = optionalText(form, "imageBackgroundUrl", 500);
     if (backgroundUrl) await validateBackgroundUrl(backgroundUrl);
+    const imageTextColor = text(form, "imageTextColor") || DEFAULT_WELCOME_TEXT_COLOR;
+    if (!isHexColor(imageTextColor)) throw new FormError("La couleur du texte doit être au format #RRVVBB.");
     const data = {
       channelId: snowflake(form, "channelId", ids.text),
       message: text(form, "message", { max: 1500 }),
       imageEnabled: form.get("mode") === "image",
       imageText: text(form, "imageText", { max: 100 }) || "Bienvenue {user} !",
+      imageTextColor: imageTextColor.toUpperCase(),
       imageBackgroundUrl: backgroundUrl,
       dmEnabled: checkbox(form, "dmEnabled"),
       dmMessage: text(form, "dmMessage", { max: 1500 }),

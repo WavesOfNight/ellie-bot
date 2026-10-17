@@ -10,3 +10,4 @@ export * from "./discord-permissions.js";
 export * from "./levels.js";
 export * from "./panels.js";
 export * from "./slash-catalog.js";
+export * from "./welcome-card.js";

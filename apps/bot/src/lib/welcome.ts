@@ -75,8 +75,9 @@ export async function welcomeMember(member: GuildMember): Promise<void> {
           const image = await renderWelcomeImage({
             avatarUrl: member.displayAvatarURL({ extension: "png", size: 256 }),
             title: applyPlaceholders(config.imageText, placeholders),
-            subtitle: `Tu es le membre n°${member.guild.memberCount.toLocaleString("fr-FR")} de ${member.guild.name}`,
+            subtitle: `Membre n°${member.guild.memberCount.toLocaleString("fr-FR")} · ${member.guild.name}`,
             backgroundUrl: config.imageBackgroundUrl,
+            textColor: config.imageTextColor,
           });
           files = [new AttachmentBuilder(image, { name: "bienvenue.png" })];
         } catch (error) {

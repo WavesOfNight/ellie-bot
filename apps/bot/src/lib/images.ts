@@ -3,6 +3,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { safeFetch } from "@ellie/database";
+import { DEFAULT_WELCOME_TEXT_COLOR, isHexColor, stripEmoji, welcomeCardPanel } from "@ellie/database/shared";
 import { logInfo } from "./log.js";
 
 const FONT_STACK = '"Quicksand", "Baloo 2", "DejaVu Sans", "Noto Sans", "Liberation Sans", Arial, sans-serif';
@@ -89,8 +90,9 @@ async function drawAvatar(ctx: SKRSContext2D, url: string, cx: number, cy: numbe
   }
 }
 
-/** Écrit un texte centré en réduisant la taille de police jusqu'à ce qu'il tienne dans `maxWidth`. */
-function fitText(ctx: SKRSContext2D, text: string, x: number, y: number, maxWidth: number, startSize: number, weight = 700): void {
+/** Écrit un texte centré (sans émojis) en réduisant la taille de police jusqu'à ce qu'il tienne dans `maxWidth`. */
+function fitText(ctx: SKRSContext2D, rawText: string, x: number, y: number, maxWidth: number, startSize: number, weight = 700): void {
+  const text = stripEmoji(rawText);
   let size = startSize;
   do {
     ctx.font = `${weight} ${size}px ${FONT_STACK}`;
@@ -106,6 +108,8 @@ export interface WelcomeImageOptions {
   title: string;
   subtitle: string;
   backgroundUrl?: string | null;
+  /** Couleur du texte (#RRVVBB) ; le cadre derrière s'adapte pour rester lisible. */
+  textColor?: string | null;
 }
 
 /** Image de bienvenue (PNG 1024 × 450) : fond pastel ou personnalisé, avatar rond, texte. */
@@ -122,16 +126,18 @@ export async function renderWelcomeImage(options: WelcomeImageOptions): Promise<
     drawCover(ctx, background, width, height);
   }
 
-  ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+  const textColor = options.textColor && isHexColor(options.textColor) ? options.textColor : DEFAULT_WELCOME_TEXT_COLOR;
+  ctx.fillStyle = welcomeCardPanel(textColor).fill;
   roundedRect(ctx, 40, 40, width - 80, height - 80, 32);
   ctx.fill();
 
   await drawAvatar(ctx, options.avatarUrl, width / 2, 165, 85);
 
-  ctx.fillStyle = "#3C3489";
+  ctx.fillStyle = textColor;
   fitText(ctx, options.title, width / 2, 305, width - 160, 52);
-  ctx.fillStyle = "#534AB7";
+  ctx.globalAlpha = 0.8;
   fitText(ctx, options.subtitle, width / 2, 360, width - 200, 28, 500);
+  ctx.globalAlpha = 1;
 
   return canvas.toBuffer("image/png");
 }

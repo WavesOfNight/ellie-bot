@@ -2,9 +2,10 @@ import { Hand } from "lucide-react";
 import { prisma } from "@ellie/database";
 import { saveRulesAction } from "@/actions/community";
 import { saveWelcomeAction } from "@/actions/guild-settings";
-import { ActionForm, CountedTextarea, ImageUrlField, SubmitButton } from "@/components/forms";
+import { ActionForm, CountedTextarea, ImageUrlField, SubmitButton, WelcomeTextColorField } from "@/components/forms";
 import { ChannelSelect, RoleSelect } from "@/components/selects";
 import { Card, Field, PageHeader, Toggle } from "@/components/ui";
+import { getGuild } from "@/lib/discord";
 import { loadGuildData } from "@/lib/guild";
 
 export const dynamic = "force-dynamic";
@@ -15,9 +16,10 @@ const COMMUNITY_PLACEHOLDERS = "{rules} (salon du règlement) {roles} (salon des
 
 export default async function WelcomePage({ params }: { params: { guildId: string } }) {
   const { guildId, channels, roles } = await loadGuildData(params.guildId);
-  const [config, guild] = await Promise.all([
+  const [config, guild, discordGuild] = await Promise.all([
     prisma.welcomeConfig.findUnique({ where: { guildId } }),
     prisma.guild.findUniqueOrThrow({ where: { id: guildId } }),
+    getGuild(guildId),
   ]);
 
   return (
@@ -49,6 +51,9 @@ export default async function WelcomePage({ params }: { params: { guildId: strin
                 <ImageUrlField name="imageBackgroundUrl" defaultValue={config?.imageBackgroundUrl} />
               </Field>
             </div>
+            <Field label="Couleur du texte de l'image" hint="Le cadre derrière le texte devient sombre pour une couleur claire, pour que le texte reste lisible.">
+              <WelcomeTextColorField name="imageTextColor" defaultValue={config?.imageTextColor} sampleText={config?.imageText} serverName={discordGuild?.name} />
+            </Field>
           </div>
         </Card>
 

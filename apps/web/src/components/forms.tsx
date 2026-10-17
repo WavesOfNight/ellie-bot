@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { LoaderCircle } from "lucide-react";
+import { DEFAULT_WELCOME_TEXT_COLOR, isHexColor, stripEmoji, WELCOME_TEXT_COLOR_PRESETS, welcomeCardPanel } from "@ellie/database/shared";
 import type { ActionState } from "@/lib/forms";
 import { cn } from "./ui";
 
@@ -127,6 +128,71 @@ export function ImageUrlField({ name, defaultValue }: { name: string; defaultVal
         // eslint-disable-next-line @next/next/no-img-element -- aperçu d'une URL externe arbitraire
         <img src={url} alt="Aperçu du fond" className="max-h-40 w-full rounded-xl object-cover" referrerPolicy="no-referrer" />
       ) : null}
+    </div>
+  );
+}
+
+/** Couleur du texte de l'image de bienvenue : palette, sélecteur libre et aperçu en direct (même rendu que le bot). */
+export function WelcomeTextColorField({
+  name,
+  defaultValue,
+  sampleText,
+  serverName,
+}: {
+  name: string;
+  defaultValue?: string | null;
+  sampleText?: string | null;
+  serverName?: string | null;
+}) {
+  const [color, setColor] = useState(defaultValue && isHexColor(defaultValue) ? defaultValue.toUpperCase() : DEFAULT_WELCOME_TEXT_COLOR);
+  const panel = welcomeCardPanel(color);
+  const title = stripEmoji((sampleText || "Bienvenue {user} !").replaceAll("{user.mention}", "@Pseudo").replace(/\{user(\.name|\.tag)?\}/g, "Pseudo"));
+  const subtitle = `Membre n°128 · ${stripEmoji(serverName || "ton serveur")}`;
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        {WELCOME_TEXT_COLOR_PRESETS.map((preset) => (
+          <button
+            key={preset.value}
+            type="button"
+            title={preset.name}
+            aria-label={preset.name}
+            aria-pressed={color === preset.value}
+            onClick={() => setColor(preset.value)}
+            className={cn(
+              "h-8 w-8 rounded-full border-2 shadow-glass transition-transform hover:scale-110",
+              color === preset.value ? "border-lavender-800 ring-2 ring-lavender-300" : "border-white",
+            )}
+            style={{ backgroundColor: preset.value }}
+          />
+        ))}
+        <label className="ml-1 flex items-center gap-2 text-sm font-semibold text-lavender-800">
+          <input
+            name={name}
+            type="color"
+            value={color}
+            onChange={(event) => setColor(event.target.value.toUpperCase())}
+            className="h-9 w-12 cursor-pointer rounded-xl border border-lavender-200 bg-white"
+            aria-label="Couleur personnalisée"
+          />
+          <code className="text-xs">{color}</code>
+        </label>
+      </div>
+      <div
+        className="flex aspect-[1024/450] w-full max-w-md items-center justify-center rounded-2xl p-3"
+        style={{ background: "linear-gradient(135deg, #F7F5FF, #E1F5EE 45%, #FBEAF0)" }}
+        aria-label="Aperçu du texte de l'image"
+      >
+        <div className="flex h-full w-full flex-col items-center justify-center gap-1 rounded-xl px-3 text-center" style={{ backgroundColor: panel.fill }}>
+          <span className="h-10 w-10 rounded-full border-2 border-white bg-lavender-300" aria-hidden />
+          <span className="max-w-full truncate font-display text-lg font-bold" style={{ color }}>
+            {title}
+          </span>
+          <span className="max-w-full truncate text-xs font-semibold" style={{ color, opacity: 0.8 }}>
+            {subtitle}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
