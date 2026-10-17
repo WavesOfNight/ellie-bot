@@ -1,9 +1,9 @@
 /**
  * Panneaux interactifs partagés par le bot et le panel web : identifiants des composants Discord,
- * limites des panneaux de rôles et textes par défaut.
+ * limites des panneaux de rôles, textes par défaut et messages du règlement / de la vérification.
  *
- * Les identifiants des boutons du règlement, des tickets et des signalements sont ceux de l'ancien
- * bot du Terrier : les messages qu'il a déjà publiés continuent de fonctionner avec Ellie.
+ * Les identifiants des boutons de vérification, des tickets et des signalements sont ceux des
+ * anciens bots de missTsune : les messages qu'ils ont déjà publiés continuent de fonctionner.
  */
 
 export const COMPONENT_IDS = {
@@ -67,4 +67,90 @@ export function isValidEmoji(value: string): boolean {
 /** Lignes d'identifiants Discord séparés par des virgules (rôles staff, rôles à mentionner…). */
 export function splitIds(value: string | null | undefined): string[] {
   return [...new Set((value ?? "").split(/[\s,;]+/).filter((id) => /^\d{17,20}$/.test(id)))];
+}
+
+// ---------------------------------------------------------------------------
+// Règlement et vérification
+// ---------------------------------------------------------------------------
+
+export interface CommunityPlaceholders {
+  /** Mention du salon du règlement */
+  rules: string;
+  /** Mention du salon du premier panneau de rôles */
+  roles: string;
+  /** Nom du serveur */
+  server: string;
+}
+
+export const channelMention = (channelId: string | null | undefined, fallback: string): string => (channelId ? `<#${channelId}>` : fallback);
+
+/** Remplace {rules}, {roles} et {server} dans les textes de la vérification. */
+export function fillCommunityPlaceholders(template: string, values: CommunityPlaceholders): string {
+  return template.replaceAll("{rules}", values.rules).replaceAll("{roles}", values.roles).replaceAll("{server}", values.server);
+}
+
+/** Émoji au format de l'API Discord : Unicode, ou émoji du serveur `<:nom:id>` / `<a:nom:id>`. */
+export function emojiPayload(value: string): { name: string; id?: string; animated?: boolean } {
+  const custom = value.trim().match(/^<(a?):(\w{2,32}):(\d{17,20})>$/);
+  return custom?.[2] && custom[3] ? { name: custom[2], id: custom[3], animated: custom[1] === "a" } : { name: value.trim() };
+}
+
+export interface RulesSettings {
+  rulesTitle: string;
+  rulesContent: string;
+  rulesButtonLabel: string;
+  verifyChannelId: string | null;
+  verifyTitle: string;
+  verifyContent: string;
+  verifyButtonEmoji: string;
+}
+
+const RULES_COLOR = 0xff7eb6;
+
+function verifyButtonRow(settings: RulesSettings) {
+  const emoji = settings.verifyButtonEmoji.trim();
+  return {
+    type: 1,
+    components: [
+      {
+        type: 2,
+        style: 3,
+        label: settings.rulesButtonLabel,
+        custom_id: COMPONENT_IDS.RULES_ACCEPT,
+        ...(emoji && isValidEmoji(emoji) ? { emoji: emojiPayload(emoji) } : {}),
+      },
+    ],
+  };
+}
+
+/**
+ * Message du règlement. Le bouton de vérification est placé dessous, sauf si un salon de
+ * vérification dédié est configuré : le règlement y renvoie alors.
+ */
+export function rulesMessagePayload(settings: RulesSettings) {
+  const withButton = !settings.verifyChannelId;
+  const description = withButton
+    ? settings.rulesContent
+    : `${settings.rulesContent}\n\n✅ **Tout lu ?** Passe par <#${settings.verifyChannelId}> pour entrer.`;
+  return {
+    embeds: [
+      {
+        title: settings.rulesTitle,
+        description: description.slice(0, 4096),
+        color: RULES_COLOR,
+        ...(withButton ? { footer: { text: "En cliquant sur le bouton, tu acceptes ce règlement." } } : {}),
+      },
+    ],
+    components: withButton ? [verifyButtonRow(settings)] : [],
+    allowed_mentions: { parse: [] },
+  };
+}
+
+/** Message du salon de vérification : texte d'accueil + bouton qui donne le rôle d'accès. */
+export function verificationMessagePayload(settings: RulesSettings, placeholders: CommunityPlaceholders) {
+  return {
+    embeds: [{ title: settings.verifyTitle, description: fillCommunityPlaceholders(settings.verifyContent, placeholders).slice(0, 4096), color: RULES_COLOR }],
+    components: [verifyButtonRow(settings)],
+    allowed_mentions: { parse: [] },
+  };
 }

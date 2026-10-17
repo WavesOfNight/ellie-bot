@@ -19,7 +19,7 @@ import {
   type OverwriteResolvable,
 } from "discord.js";
 import { prisma, type Guild as GuildSettings } from "@ellie/database";
-import { COMPONENT_IDS, splitIds } from "@ellie/database/shared";
+import { channelMention, COMPONENT_IDS, fillCommunityPlaceholders, splitIds } from "@ellie/database/shared";
 import { getGuildSettings } from "./cache.js";
 import { brandEmbed } from "./embeds.js";
 import { logError } from "./log.js";
@@ -89,10 +89,13 @@ export async function openTicket(interaction: ButtonInteraction<"cached">): Prom
     PermissionFlagsBits.EmbedLinks,
   ];
   const staffRoles = splitIds(settings.ticketStaffRoleIds).filter((id) => guild.roles.cache.has(id));
+  // Discord refuse de créer un salon dont les exceptions accordent ou refusent une permission que le
+  // bot n'a pas lui-même sur le serveur : celles de la catégorie sont recopiées dans cette limite.
+  const grantable = (guild.members.me ?? (await guild.members.fetchMe())).permissions.bitfield;
   const overwrites: OverwriteResolvable[] = [
     ...category.permissionOverwrites.cache
       .filter((overwrite) => overwrite.id !== guild.roles.everyone.id && overwrite.id !== user.id)
-      .map((overwrite) => ({ id: overwrite.id, type: overwrite.type, allow: overwrite.allow.toArray(), deny: overwrite.deny.toArray() })),
+      .map((overwrite) => ({ id: overwrite.id, type: overwrite.type, allow: overwrite.allow.bitfield & grantable, deny: overwrite.deny.bitfield & grantable })),
     { id: guild.roles.everyone.id, type: OverwriteType.Role, deny: [PermissionFlagsBits.ViewChannel] },
     { id: user.id, type: OverwriteType.Member, allow: access },
     { id: interaction.client.user.id, type: OverwriteType.Member, allow: [...access, PermissionFlagsBits.ManageChannels] },
@@ -273,30 +276,40 @@ export async function submitReport(interaction: ModalSubmitInteraction<"cached">
 }
 
 // ---------------------------------------------------------------------------
-// Règlement à accepter
+// Vérification (règlement accepté)
 // ---------------------------------------------------------------------------
 
-/** Bouton « J'accepte le règlement » : donne le rôle d'accès au serveur. */
+/** Bouton de vérification : le membre accepte le règlement et reçoit le rôle d'accès au serveur. */
 export async function acceptRules(interaction: ButtonInteraction<"cached">): Promise<void> {
   const settings = await getGuildSettings(interaction.guildId);
   const role = settings.rulesRoleId ? interaction.guild.roles.cache.get(settings.rulesRoleId) : null;
   if (!role) {
-    await replyEphemeral(interaction, "🛠️ Le rôle du règlement n'est pas configuré : préviens l'équipe du serveur.");
+    await replyEphemeral(interaction, "🛠️ La vérification n'est pas encore configurée : préviens l'équipe du serveur.");
     return;
   }
   if (interaction.member.roles.cache.has(role.id)) {
-    await replyEphemeral(interaction, "🦊 Tu as déjà accepté le règlement ! (mais merci de l'avoir relu, c'est mignon 💕)");
+    await replyEphemeral(interaction, "🐾 Tu es déjà vérifié·e, tout le serveur t'est ouvert ! (merci d'avoir relu le règlement 💕)");
     return;
   }
   if (!role.editable) {
-    logError(`règlement (serveur ${interaction.guildId})`, new Error(`rôle « ${role.name} » au-dessus du rôle du bot`));
-    await replyEphemeral(interaction, "😿 Je n'ai pas le droit de donner ce rôle : un·e admin doit placer mon rôle au-dessus.");
+    logError(`vérification (serveur ${interaction.guildId})`, new Error(`rôle « ${role.name} » au-dessus du rôle du bot`));
+    await replyEphemeral(interaction, "😿 Je n'ai pas le droit de donner ce rôle : préviens le staff, mon rôle doit être placé au-dessus.");
     return;
   }
-  await interaction.member.roles.add(role, "A accepté le règlement");
+  try {
+    await interaction.member.roles.add(role, "Vérification : règlement accepté");
+  } catch (error) {
+    logError(`vérification (serveur ${interaction.guildId}, membre ${interaction.user.id})`, error);
+    await replyEphemeral(interaction, "😿 Je n'arrive pas à te donner le rôle. Préviens le staff, je réessaierai avec toi !");
+    return;
+  }
   const rolesPanel = await prisma.reactionRoleMessage.findFirst({ where: { guildId: interaction.guildId }, orderBy: { id: "asc" } });
   await replyEphemeral(
     interaction,
-    `🎉 **Bienvenue officiellement sur le serveur !** 🦊${rolesPanel ? `\n\n🎀 Prochaine étape : <#${rolesPanel.channelId}> pour choisir tes rôles.` : ""}`,
+    fillCommunityPlaceholders(settings.verifyReply, {
+      rules: channelMention(settings.rulesChannelId, "le règlement"),
+      roles: channelMention(rolesPanel?.channelId, "le salon des rôles"),
+      server: interaction.guild.name,
+    }).slice(0, 2000),
   );
 }

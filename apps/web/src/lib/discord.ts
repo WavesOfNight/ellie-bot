@@ -28,6 +28,7 @@ export interface DiscordChannel {
   type: number;
   parent_id: string | null;
   position: number;
+  permission_overwrites?: Array<{ id: string; type: number; allow: string; deny: string }>;
 }
 
 export interface DiscordRole {
@@ -35,6 +36,7 @@ export interface DiscordRole {
   name: string;
   color: number;
   position: number;
+  permissions: string;
   managed: boolean;
 }
 
@@ -97,10 +99,55 @@ export async function getGuildChannels(guildId: string): Promise<DiscordChannel[
   }
 }
 
+/** Tous les rôles, @everyone compris (son identifiant est celui du serveur). Lève une erreur si l'API échoue. */
+export async function fetchAllGuildRoles(guildId: string): Promise<DiscordRole[]> {
+  return botRequest<DiscordRole[]>("GET", `/guilds/${guildId}/roles`, undefined, CACHE_MS);
+}
+
 export async function getGuildRoles(guildId: string): Promise<DiscordRole[]> {
   try {
-    const roles = await botRequest<DiscordRole[]>("GET", `/guilds/${guildId}/roles`, undefined, CACHE_MS);
+    const roles = await fetchAllGuildRoles(guildId);
     return roles.filter((role) => role.id !== guildId).sort((a, b) => b.position - a.position);
+  } catch {
+    return [];
+  }
+}
+
+/** Compte Discord du bot (mis en cache une heure). */
+export async function getBotUser(): Promise<DiscordUser> {
+  return botRequest<DiscordUser>("GET", "/users/@me", undefined, 3_600_000);
+}
+
+/** Rôles du bot sur un serveur. */
+export async function getBotRoleIds(guildId: string): Promise<string[]> {
+  const bot = await getBotUser();
+  const member = await botRequest<{ roles: string[] }>("GET", `/guilds/${guildId}/members/${bot.id}`, undefined, CACHE_MS);
+  return member.roles;
+}
+
+/** Donne un rôle au bot lui-même (possible s'il est sous le rôle du bot et que celui-ci peut gérer les rôles). */
+export async function addBotRole(guildId: string, roleId: string): Promise<void> {
+  const bot = await getBotUser();
+  await botRequest("PUT", `/guilds/${guildId}/members/${bot.id}/roles/${roleId}`);
+  invalidateDiscordCache(`/guilds/${guildId}/members/${bot.id}`);
+}
+
+interface MessageWithComponents {
+  id: string;
+  author: { id: string; bot?: boolean };
+  components?: Array<{ components?: Array<{ custom_id?: string }> }>;
+}
+
+/**
+ * Messages de bots, parmi les 50 derniers d'un salon, qui portent un bouton `customId` (par exemple
+ * un ancien bouton de vérification). `own` : publié par Ellie. Liste vide si le salon est illisible.
+ */
+export async function findButtonMessages(channelId: string, customId: string): Promise<Array<{ id: string; own: boolean }>> {
+  try {
+    const [bot, messages] = await Promise.all([getBotUser(), botRequest<MessageWithComponents[]>("GET", `/channels/${channelId}/messages?limit=50`)]);
+    return messages
+      .filter((message) => message.author.bot && message.components?.some((row) => row.components?.some((component) => component.custom_id === customId)))
+      .map((message) => ({ id: message.id, own: message.author.id === bot.id }));
   } catch {
     return [];
   }

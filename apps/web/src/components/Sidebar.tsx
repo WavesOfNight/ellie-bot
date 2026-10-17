@@ -11,6 +11,7 @@ import {
   Link2,
   MousePointerClick,
   Shield,
+  ShieldCheck,
   Sparkles,
   Star,
   Terminal,
@@ -60,6 +61,7 @@ export function Sidebar({ guildId }: { guildId: string }) {
   const base = `/dashboard/${guildId}`;
   const items: NavItem[] = [
     { href: base, label: "Tableau de bord", icon: LayoutDashboard },
+    { href: `${base}/diagnostic`, label: "Diagnostic", icon: ShieldCheck },
     { href: `${base}/welcome`, label: "Bienvenue", icon: Hand },
     { href: `${base}/commands`, label: "Commandes Perso", icon: Blocks },
     { href: `${base}/levels`, label: "Niveaux", icon: TrendingUp },

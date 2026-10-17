@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { MousePointerClick } from "lucide-react";
-import { LEGACY_TERRIER, prisma } from "@ellie/database";
+import { CAT_CAFE, prisma } from "@ellie/database";
 import { countPanelComponents, DEFAULT_ROLE_PANEL_DESCRIPTION, ROLE_PANEL_LIMITS } from "@ellie/database/shared";
 import {
   addRoleOptionAction,
@@ -7,7 +8,6 @@ import {
   deleteRoleGroupAction,
   deleteRoleOptionAction,
   deleteRolePanelAction,
-  importLegacyAction,
   saveRoleGroupAction,
   updateRolePanelAction,
 } from "@/actions/community";
@@ -65,32 +65,22 @@ export default async function RolePanelsPage({ params }: { params: { guildId: st
   });
   const roleName = (id: string, list: readonly DiscordRole[]) => list.find((role) => role.id === id)?.name ?? "rôle supprimé";
   const channelName = (id: string) => channels.find((channel) => channel.id === id)?.name ?? "salon supprimé";
-  const isLegacyServer = guildId === LEGACY_TERRIER.guildId;
-  const imported = panels.some((panel) => panel.groups.some((group) => group.legacyKey));
+  const catCafeReady = panels.some((panel) => panel.channelId === CAT_CAFE.channels.roles && panel.groups.some((group) => group.legacyKey));
 
   return (
     <>
       <PageHeader icon={MousePointerClick} title="Panneaux de rôles" subtitle="Les membres choisissent leurs rôles eux-mêmes : menus à cocher ou boutons." />
 
-      {isLegacyServer ? (
-        <Card title="🦊 Reprendre l'ancien bot du Terrier" className="mb-6">
-          <p className="mb-3 text-sm text-lavender-800">
-            Importe les 5 menus (Pronoms, Notifications, Passions, Jeux, Couleur) avec tes rôles existants, ainsi que les réglages des tickets, des
-            signalements anonymes et du règlement. Si Ellie utilise la même application Discord que l&apos;ancien bot, ses messages sont simplement
-            mis à jour ; sinon, ils sont remplacés.
-          </p>
-          {imported ? (
-            <div className="mb-3">
-              <Badge tone="aqua">déjà importé</Badge>
-            </div>
-          ) : null}
-          <ActionForm action={importLegacyAction}>
-            <input type="hidden" name="guildId" value={guildId} />
-            <SubmitButton variant="secondary" confirm="Reprendre la configuration de l'ancien bot ? Les réglages tickets et règlement seront remplacés.">
-              {imported ? "Réimporter tickets et règlement" : "Importer la configuration de l'ancien bot"}
-            </SubmitButton>
-          </ActionForm>
-        </Card>
+      {guildId === CAT_CAFE.guildId && !catCafeReady ? (
+        <div className="mb-6">
+          <Notice>
+            🐱 Les menus du Cat Café (Pronoms, Couleur, Notifications, Passions, Jeux) se créent en un clic depuis la page{" "}
+            <Link href={`/dashboard/${guildId}/diagnostic`} className="font-semibold underline">
+              Diagnostic
+            </Link>
+            .
+          </Notice>
+        </div>
       ) : null}
 
       <Card title="Nouveau panneau" className="mb-6">

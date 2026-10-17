@@ -114,24 +114,31 @@ Recharge ensuite la page dans une **fenêtre de navigation privée** (Chrome gar
 
 Ouvre **https://ellie.reads-records.com** → page **« Bienvenue ! »** → crée ton **compte administrateur** (cette page disparaît ensuite).
 
-## Étape 4 — Passer de l'ancien bot à Ellie
+## Étape 4 — Brancher Ellie sur le Cat Café (et remplacer l'ancien bot)
 
-**Recommandé : garde la même application Discord que l'ancien bot.** Ainsi, ses messages déjà publiés (règlement, choix des rôles, aide) continuent de fonctionner et sont simplement **mis à jour** par Ellie — pas besoin de réinviter le bot.
+Le serveur a été construit par l'ancien bot (`/setup` du Cat Café) : les rôles, les salons et leurs permissions sont déjà en place. Ellie s'y branche et prend le relais, bouton de vérification compris.
 
-1. **Arrête l'ancien bot** là où il tourne (deux programmes avec le même token se marchent dessus).
+**Recommandé : garde la même application Discord que l'ancien bot.** Son bouton déjà publié dans ✅・vérification est alors simplement mis à jour, et tu n'as pas à réinviter le bot.
+
+1. **Arrête l'ancien bot** là où il tourne : deux programmes qui utilisent le même token se marchent dessus.
 2. Sur <https://discord.com/developers/applications> → ton application → **Bot** : vérifie que **Server Members Intent** et **Message Content Intent** sont activés, puis **Reset Token** et copie le token.
 3. **Général** → copie l'**Application ID**.
 4. Panel Ellie → **Paramètres** (roue dentée) → **Bot Discord** → colle Application ID + token → **Enregistrer**. Ellie se connecte toute seule en quelques secondes.
-5. Panel → ton serveur → **Panneaux de rôles** → **« Importer la configuration de l'ancien bot »**. Ça reprend :
-   - les 5 menus **Pronoms, Notifications, Passions, Jeux, Couleur** avec tes rôles existants (même fonctionnement : un bouton → un menu à cocher, une seule couleur à la fois) ;
-   - les **tickets** (catégorie 🎫 TICKETS, staff, ping des Gardien·nes et Anges gardien·nes, archives dans 📁・archives-tickets) ;
-   - le **signalement anonyme** (vers 🚨・signalements) ;
-   - le **règlement** et son bouton « J'ai lu et j'accepte » (rôle 🦊 Petit·e Renard·e).
-6. Vérifie la page **Tickets** puis clique **« Mettre à jour le panneau »**, et sur la page **Bienvenue**, **« Enregistrer et mettre à jour sur Discord »** pour le règlement.
+5. **Sur Discord, place le rôle d'Ellie** : Paramètres du serveur → **Rôles** → glisse le rôle d'Ellie **juste au-dessus de 🤖 Robots du Café** (sous 🍡 Petit·e Ange Gardien·ne). Elle se retrouve ainsi au-dessus de tous les rôles qu'elle distribue (🐾 Client·e du Café, couleurs, pronoms, notifs, passions, jeux, niveaux) et en dessous du staff.
+6. **Ouvre à Ellie les 2 salons réservés aux modos**, 🚨・signalements et 📁・preuves-et-archives (le Cat Café les cache aux bots) : Modifier le salon → **Permissions** → **+** → rôle d'Ellie → autorise *Voir le salon*, *Envoyer des messages*, *Intégrer des liens* et *Joindre des fichiers*. C'est là qu'elle dépose les signalements anonymes et les transcriptions des tickets.
+7. Panel → ton serveur → **Diagnostic** → **« Appliquer la configuration du Cat Café »**. Ça :
+   - crée dans 🎀・choisis-tes-rôles les 5 menus **Pronoms, Couleur, Notifications, Passions, Jeux** avec les rôles du Cat Café (un bouton ouvre un menu à cocher, une seule couleur à la fois) ;
+   - publie le **règlement** du Cat Café dans 📜・règlement, et dans ✅・vérification le bouton **« J'ai lu le règlement, j'entre ! »**, qui donne 🐾 Client·e du Café. Les anciens boutons de vérification sont retirés : il n'en reste qu'un ;
+   - règle les **tickets** (catégorie 🎫 TICKETS, panneau dans 🆘・aide-et-questions, mention des Gardien·nes et des Anges gardien·nes), le **signalement anonyme**, les **transcriptions** et les **logs** (📋・logs-modération) ;
+   - relie les rôles de niveau : 🍼 Chaton (niv. 1) → 🐈 Chat de salon (10) → 😼 Chat de gouttière (20) → ✨ Neko légendaire (35), et ajoute l'**alerte de live** dans 🔴・on-est-en-live, qui mentionne 🔴 Notif Lives ;
+   - donne à Ellie le rôle **🤖 Robots du Café**, qui lui ouvre les salons des bots.
+8. La page **Diagnostic** vérifie ensuite tout : le rang du rôle d'Ellie, ses permissions dans chaque salon utilisé et le parcours des nouveaux (ils doivent voir le bouton ; le rôle d'accès ne doit pas être donné automatiquement à l'arrivée). Chaque ligne ❌ indique quoi corriger. Clique **« Relancer le diagnostic »** après une correction sur Discord.
 
+> Le texte du règlement, de la vérification et du message de bienvenue qui suit se modifie sur la page **Bienvenue**. Si l'équipe préfère écrire le règlement à la main, vide son texte : Ellie ne publiera que le bouton de vérification.
+>
 > Les anciennes commandes `/setup`, `/compliment`, `/calin`, `/boule-magique` disparaissent automatiquement au démarrage d'Ellie.
 >
-> **Si tu crées une nouvelle application Discord** à la place : invite-la avec le lien affiché dans Paramètres, place son rôle **tout en haut**, puis fais l'import ci-dessus — Ellie remplacera les anciens messages par les siens.
+> **Si tu crées une nouvelle application Discord** à la place : invite-la avec le lien affiché dans Paramètres, puis suis les étapes 5 à 8. À la publication, Ellie remplace le bouton de vérification de l'ancien bot par le sien.
 
 ## Étape 5 — Le reste (facultatif)
 
@@ -174,5 +181,6 @@ Elle récupère la dernière version (`git pull`), sauvegarde la base, réinstal
 | La page par défaut de Plesk s'affiche | Les directives ne sont pas appliquées : recolle-les et décoche les deux options « fichiers statiques ». |
 | Retour en boucle sur /login | `/opt/ellie-bot/apps/web/.env.local` doit contenir `NEXTAUTH_URL="https://ellie.reads-records.com"`, puis `systemctl restart ellie-web`. |
 | Le bot Discord ne se connecte pas | `journalctl -u ellie-bot -n 50` : token invalide, intents non activés, ou l'ancien bot tourne encore avec le même token. |
-| « Je n'ai pas le droit de toucher à ce rôle » | Le rôle d'Ellie doit être **au-dessus** des rôles à donner (Paramètres du serveur → Rôles). |
+| « Je n'ai pas le droit de toucher à ce rôle » | Le rôle d'Ellie doit être **au-dessus** des rôles à donner (Paramètres du serveur → Rôles). La page **Diagnostic** du panel liste les rôles concernés. |
+| Signalements ou tickets qui échouent | Page **Diagnostic** : elle indique le salon et la permission qui manquent à Ellie. |
 | L'installation semble bloquée | `tail -n 50 /root/ellie-setup.log` pour voir la dernière étape. Le script peut être relancé sans risque. |

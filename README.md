@@ -4,7 +4,7 @@ Bot Discord, bot Twitch et panel web d'administration, avec une personnalité IA
 
 > **Installation sur le serveur Plesk (`ellie.reads-records.com`) : voir [INSTALL-PLESK.md](INSTALL-PLESK.md)** (guide pas à pas depuis le terminal SSH de Plesk).
 >
-> **Ancien bot du Terrier** : sa configuration (menus de rôles, tickets, signalements, règlement) se reprend en un clic depuis le panel, et ses boutons déjà publiés continuent de fonctionner.
+> **Cat Café de missTsune** : Ellie se branche en un clic sur la structure créée par l'ancien bot (menus de rôles, règlement, vérification, tickets, signalements, niveaux, alerte de live), et la page **Diagnostic** vérifie le rang de son rôle et ses permissions dans chaque salon.
 
 ## Fonctionnalités
 
@@ -24,7 +24,7 @@ Et aussi : automodération (filtre de mots FR/EN/DE/ES/IT à 4 niveaux, liens av
 
 **Bot Twitch** (tmi.js + Helix) : commandes intégrées (`!discord`, `!help`, `!uptime`, `!followage`/`!fc`, `!leaderboard`, `!dleaderboard`, `!rank`, `!so`) et personnalisées, timers, giveaways par mot-clé, XP et temps de visionnage, automodération avec escalade (2 avertissements → timeout 10 min → ban), shoutout des raids, annonces follows/abonnements, logs dans Discord.
 
-**Panel web** (Next.js 14) : création du compte admin au premier lancement, connexion par mot de passe ou avec Discord (admins des serveurs), une page par module, section Twitch, page Ellie (IA) avec boîte de test et suivi des coûts.
+**Panel web** (Next.js 14) : création du compte admin au premier lancement, connexion par mot de passe ou avec Discord (admins des serveurs), une page par module, page Diagnostic (rang du rôle d'Ellie, permissions par salon, parcours de vérification), section Twitch, page Ellie (IA) avec boîte de test et suivi des coûts.
 
 > **Économie** : les pièces ne viennent **que** des actions `Donner/Retirer des pièces` des commandes personnalisées et des transferts `/pay` entre membres (aucun mini-jeu ne distribue de pièces).
 

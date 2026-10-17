@@ -1,16 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { importLegacyTerrier, prisma } from "@ellie/database";
-import {
-  COMPONENT_IDS,
-  countPanelComponents,
-  isValidEmoji,
-  ROLE_GROUP_DISPLAYS,
-  ROLE_PANEL_LIMITS,
-  ticketPanelContent,
-} from "@ellie/database/shared";
-import { deleteChannelMessage, publishOrUpdateMessage } from "@/lib/discord";
+import { applyCatCafeConfig, CAT_CAFE, prisma } from "@ellie/database";
+import { countPanelComponents, isValidEmoji, ROLE_GROUP_DISPLAYS, ROLE_PANEL_LIMITS } from "@ellie/database/shared";
+import { describePublication, publishRulesAndVerification, publishTicketPanel } from "@/lib/community";
+import { addBotRole, deleteChannelMessage, getBotRoleIds, invalidateDiscordCache } from "@/lib/discord";
 import { checkbox, fail, FormError, handle, integer, ok, oneOf, snowflake, text, type ActionState } from "@/lib/forms";
 import { guildFromForm, guildIdSets } from "@/lib/guild";
 
@@ -195,19 +189,6 @@ export async function deleteRoleOptionAction(_state: ActionState, form: FormData
   });
 }
 
-export async function importLegacyAction(_state: ActionState, form: FormData): Promise<ActionState> {
-  return handle(async () => {
-    const guildId = await guildFromForm(form);
-    const result = await importLegacyTerrier(guildId);
-    for (const page of ["reaction-roles", "tickets", "welcome"]) revalidatePath(path(guildId, page));
-    return ok(
-      result.panelCreated
-        ? `Configuration de l'ancien bot reprise : ${result.groups} menus (${result.options} rôles), tickets, signalements et règlement. Les anciens messages sont mis à jour sous 15 secondes.`
-        : "Réglages des tickets et du règlement repris (le panneau de rôles avait déjà été importé).",
-    );
-  });
-}
-
 // ---------------------------------------------------------------------------
 // Tickets et signalements
 // ---------------------------------------------------------------------------
@@ -241,29 +222,22 @@ export async function saveTicketsAction(_state: ActionState, form: FormData): Pr
 export async function publishTicketPanelAction(_state: ActionState, form: FormData): Promise<ActionState> {
   return handle(async () => {
     const guildId = await guildFromForm(form);
-    const guild = await prisma.guild.findUniqueOrThrow({ where: { id: guildId } });
-    if (!guild.ticketCategoryId || !guild.ticketPanelChannelId) {
-      return fail("Choisis d'abord la catégorie des tickets et le salon du panneau, puis enregistre.");
-    }
-    const content = ticketPanelContent(Boolean(guild.reportChannelId));
-    const buttons = [
-      { type: 2, style: 1, label: "Ouvrir un ticket", emoji: { name: "📩" }, custom_id: COMPONENT_IDS.TICKET_OPEN },
-      ...(guild.reportChannelId ? [{ type: 2, style: 2, label: "Signalement anonyme", emoji: { name: "🕵️" }, custom_id: COMPONENT_IDS.REPORT_OPEN }] : []),
-    ];
-    const messageId = await publishOrUpdateMessage(guild.ticketPanelChannelId, guild.ticketPanelMessageId, {
-      embeds: [{ title: content.title, description: content.description, color: content.color }],
-      components: [{ type: 1, components: buttons }],
-      allowed_mentions: { parse: [] },
-    });
-    await prisma.guild.update({ where: { id: guildId }, data: { ticketPanelMessageId: messageId } });
+    const { updated } = await publishTicketPanel(guildId);
     revalidatePath(path(guildId, "tickets"));
-    return ok(messageId === guild.ticketPanelMessageId ? "Panneau mis à jour ✅" : "Panneau publié ✅");
+    return ok(updated ? "Panneau mis à jour ✅" : "Panneau publié ✅");
   });
 }
 
 // ---------------------------------------------------------------------------
-// Règlement à accepter
+// Règlement et vérification
 // ---------------------------------------------------------------------------
+
+/** Supprime un message publié quand son salon change (il sera republié dans le nouveau). */
+async function movedMessage(previousChannelId: string | null, messageId: string | null, nextChannelId: string | null): Promise<boolean> {
+  if (!previousChannelId || !messageId || previousChannelId === nextChannelId) return false;
+  await deleteChannelMessage(previousChannelId, messageId).catch(() => undefined); // ancien salon : message peut-être déjà supprimé
+  return true;
+}
 
 export async function saveRulesAction(_state: ActionState, form: FormData): Promise<ActionState> {
   return handle(async () => {
@@ -273,30 +247,77 @@ export async function saveRulesAction(_state: ActionState, form: FormData): Prom
     const data = {
       rulesChannelId: snowflake(form, "rulesChannelId", ids.text),
       rulesRoleId: snowflake(form, "rulesRoleId", ids.roles),
-      rulesTitle: text(form, "rulesTitle", { required: "Le titre est obligatoire.", max: 256 }),
+      rulesTitle: text(form, "rulesTitle", { required: "Le titre du règlement est obligatoire.", max: 256 }),
       rulesContent: text(form, "rulesContent", { max: 4000 }),
       rulesButtonLabel: text(form, "rulesButtonLabel", { required: "Le texte du bouton est obligatoire.", max: 80 }),
+      verifyChannelId: snowflake(form, "verifyChannelId", ids.text),
+      verifyTitle: text(form, "verifyTitle", { required: "Le titre de la vérification est obligatoire.", max: 256 }),
+      verifyContent: text(form, "verifyContent", { max: 2000 }),
+      verifyButtonEmoji: emojiOf(form, "verifyButtonEmoji") ?? "",
+      verifyReply: text(form, "verifyReply", { required: "Le message de bienvenue après la vérification est obligatoire.", max: 1500 }),
     };
     const previous = await prisma.guild.findUniqueOrThrow({ where: { id: guildId } });
-    const movedMessage = previous.rulesMessageId && previous.rulesChannelId && previous.rulesChannelId !== data.rulesChannelId;
-    if (movedMessage && previous.rulesChannelId && previous.rulesMessageId) {
-      await deleteChannelMessage(previous.rulesChannelId, previous.rulesMessageId).catch(() => undefined); // ancien salon : message peut-être déjà supprimé
-    }
-    const guild = await prisma.guild.update({ where: { id: guildId }, data: { ...data, ...(movedMessage ? { rulesMessageId: null } : {}) } });
-    if (intent !== "publish") {
-      revalidatePath(path(guildId, "welcome"));
-      return ok("Règlement enregistré.");
-    }
-    if (!data.rulesChannelId || !data.rulesRoleId || !data.rulesContent) {
-      return fail("Pour publier, choisis le salon, le rôle donné et écris le règlement.");
-    }
-    const messageId = await publishOrUpdateMessage(data.rulesChannelId, guild.rulesMessageId, {
-      embeds: [{ title: data.rulesTitle, description: data.rulesContent, color: 0xff7eb6, footer: { text: "En cliquant sur le bouton, tu acceptes ce règlement 🦊" } }],
-      components: [{ type: 1, components: [{ type: 2, style: 3, label: data.rulesButtonLabel, emoji: { name: "🦊" }, custom_id: COMPONENT_IDS.RULES_ACCEPT }] }],
-      allowed_mentions: { parse: [] },
+    const rulesMoved = await movedMessage(previous.rulesChannelId, previous.rulesMessageId, data.rulesChannelId);
+    const verifyMoved = await movedMessage(previous.verifyChannelId, previous.verifyMessageId, data.verifyChannelId);
+    await prisma.guild.update({
+      where: { id: guildId },
+      data: { ...data, ...(rulesMoved ? { rulesMessageId: null } : {}), ...(verifyMoved ? { verifyMessageId: null } : {}) },
     });
-    await prisma.guild.update({ where: { id: guildId }, data: { rulesMessageId: messageId } });
     revalidatePath(path(guildId, "welcome"));
-    return ok(messageId === guild.rulesMessageId ? "Règlement mis à jour sur Discord ✅" : "Règlement publié ✅");
+    if (intent !== "publish") return ok("Règlement et vérification enregistrés.");
+
+    if (!data.rulesRoleId) return fail("Pour publier, choisis le rôle donné par le bouton.");
+    if (!data.verifyChannelId && !(data.rulesChannelId && data.rulesContent)) {
+      return fail("Pour publier, choisis un salon de vérification, ou le salon du règlement avec son texte (le bouton sera dessous).");
+    }
+    return ok(`${describePublication(await publishRulesAndVerification(guildId))}.`);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Configuration du Cat Café
+// ---------------------------------------------------------------------------
+
+const readableError = (error: unknown): string =>
+  error instanceof FormError || (error instanceof Error && error.name === "DiscordApiError") ? error.message : "erreur inattendue";
+
+/**
+ * Branche Ellie sur la structure du Cat Café (rôles, menus, tickets, vérification, niveaux, live),
+ * publie les messages, puis donne à Ellie le rôle 🤖 Robots du Café qui ouvre l'accès aux salons.
+ */
+export async function applyCatCafeAction(_state: ActionState, form: FormData): Promise<ActionState> {
+  return handle(async () => {
+    const guildId = await guildFromForm(form);
+    const result = await applyCatCafeConfig(guildId);
+    const done = [`${result.groups} menus de rôles (${result.options} rôles)`, "règlement et vérification", "tickets et signalements"];
+    if (result.levelRewards) done.push(`${result.levelRewards} rôles de niveau`);
+    if (result.liveAlert) done.push("alerte de live Twitch");
+
+    const problems: string[] = [];
+    const summary = await publishRulesAndVerification(guildId).catch((error: unknown) => {
+      problems.push(`publication du règlement et de la vérification : ${readableError(error)}`);
+      return null;
+    });
+    await publishTicketPanel(guildId).catch((error: unknown) => problems.push(`panneau d'aide : ${readableError(error)}`));
+    const botRoles = await getBotRoleIds(guildId).catch(() => [] as string[]);
+    if (!botRoles.includes(CAT_CAFE.roles.bots)) {
+      await addBotRole(guildId, CAT_CAFE.roles.bots).catch((error: unknown) => problems.push(`rôle 🤖 Robots du Café pour Ellie : ${readableError(error)}`));
+    }
+
+    for (const page of ["diagnostic", "reaction-roles", "tickets", "welcome", "levels", "alerts", "moderation"]) revalidatePath(path(guildId, page));
+    const message = `Configuration du Cat Café appliquée : ${done.join(", ")}.${summary ? ` ${describePublication(summary)}.` : ""}`;
+    return problems.length
+      ? fail(`${message} À corriger : ${problems.join(" · ")}. Le diagnostic ci-dessous indique quoi régler.`)
+      : ok(`${message} Le panneau de rôles sera publié sous 15 secondes.`);
+  });
+}
+
+/** Relit les rôles et salons sur Discord (sans attendre l'expiration du cache de 30 s). */
+export async function refreshDiagnosticAction(_state: ActionState, form: FormData): Promise<ActionState> {
+  return handle(async () => {
+    const guildId = await guildFromForm(form);
+    invalidateDiscordCache(guildId);
+    revalidatePath(path(guildId, "diagnostic"));
+    return ok("Diagnostic relancé.");
   });
 }

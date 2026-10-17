@@ -106,6 +106,16 @@ model Guild {
   rulesContent     String  @default("")
   rulesButtonLabel String  @default("J'ai lu et j'accepte le règlement")
 
+  /// Salon dédié au bouton de vérification (vide = bouton sous le règlement)
+  verifyChannelId   String?
+  verifyMessageId   String?
+  verifyTitle       String  @default("✅ Vérification")
+  /// Placeholders : {rules} (salon du règlement), {roles} (salon des rôles), {server}
+  verifyContent     String  @default("Lis le règlement dans {rules}, puis clique sur le bouton pour entrer sur le serveur.")
+  verifyButtonEmoji String  @default("✅")
+  /// Réponse privée après la vérification (mêmes placeholders)
+  verifyReply       String  @default("🎉 **Bienvenue sur {server} !** Tout le serveur t'est ouvert.")
+
   hubVoiceChannelId      String?
   hubChannelNameTemplate String  @default("🔊 Salon de {user}")
 

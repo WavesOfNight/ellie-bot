@@ -6,6 +6,7 @@ export * from "./automod.js";
 export * from "./automod-filters.js";
 export * from "./branding.js";
 export * from "./custom-command-actions.js";
+export * from "./discord-permissions.js";
 export * from "./levels.js";
 export * from "./panels.js";
 export * from "./slash-catalog.js";
