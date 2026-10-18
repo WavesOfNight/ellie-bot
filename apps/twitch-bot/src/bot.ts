@@ -92,6 +92,11 @@ export class TwitchBot {
     logInfo(`connecté au chat de ${channelLogin} en tant que ${botLogin}`);
   }
 
+  /** Connexion IRC au chat ouverte (tmi.js se reconnecte seul après une coupure). */
+  isConnected(): boolean {
+    return this.client?.readyState() === "OPEN";
+  }
+
   async disconnect(): Promise<void> {
     this.tasks.stop();
     const client = this.client;

@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { LayoutDashboard, MessageSquare, ShieldAlert, Terminal } from "lucide-react";
 import { getTwitchBotSettings, getTwitchDailyStats } from "@ellie/database";
-import { Badge, Card, Notice, PageHeader, StatCard, TableWrapper } from "@/components/ui";
+import { AutoRefresh } from "@/components/AutoRefresh";
+import { loadTwitchStatus, TwitchStatusBadge, TwitchStatusPanel } from "@/components/TwitchStatus";
+import { Card, Notice, PageHeader, StatCard, TableWrapper } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Bot Twitch" };
 
 export default async function TwitchDashboard() {
   const [settings, stats] = await Promise.all([getTwitchBotSettings(), getTwitchDailyStats(7)]);
+  const status = await loadTwitchStatus(settings);
   const totals = stats.reduce(
     (sum, day) => ({ messages: sum.messages + day.messages, commands: sum.commands + day.commands, timeouts: sum.timeouts + day.timeouts }),
     { messages: 0, commands: 0, timeouts: 0 },
@@ -21,8 +24,10 @@ export default async function TwitchDashboard() {
         icon={LayoutDashboard}
         title="Bot Twitch"
         subtitle={settings.channelName ? `Chaîne : ${settings.channelName}${settings.username ? ` · compte bot : ${settings.username}` : ""}` : "Aperçu des 7 derniers jours."}
-        actions={ready ? <Badge tone="aqua">actif</Badge> : <Badge tone="coral">inactif</Badge>}
+        actions={<TwitchStatusBadge status={status} />}
       />
+      <AutoRefresh seconds={10} />
+      <TwitchStatusPanel status={status} className="mb-6" />
       {!ready ? (
         <div className="mb-6">
           <Notice>

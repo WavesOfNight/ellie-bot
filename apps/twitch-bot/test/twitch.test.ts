@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { ChatBuffer } from "../src/context.js";
 import { chatLine, countEmotes, formatLongDuration } from "../src/format.js";
+import { HelixError } from "../src/helix.js";
+import { explainConnectionError } from "../src/supervisor.js";
 
 const DAY = 86_400_000;
 
@@ -35,5 +37,16 @@ describe("tampon du chat", () => {
     assert.equal(recent.length, 8);
     assert.equal(recent.at(-1)?.content, "m11");
     assert.ok(!recent.some((entry) => entry.content === "trop ancien"));
+  });
+});
+
+describe("erreurs de connexion affichées dans le panel", () => {
+  it("traduit les refus de Twitch en marche à suivre", () => {
+    assert.match(explainConnectionError("Login authentication failed"), /reconnecte-le avec « Se connecter avec Twitch »/);
+    assert.match(explainConnectionError(new HelixError(401, "Invalid OAuth token")), /Jeton Twitch refusé/);
+  });
+
+  it("garde le message d'origine sinon", () => {
+    assert.equal(explainConnectionError(new Error("compte bot « x » ou chaîne « y » introuvable sur Twitch")), "compte bot « x » ou chaîne « y » introuvable sur Twitch");
   });
 });

@@ -510,6 +510,20 @@ model AiDailyUsage {
 // ---------------------------------------------------------------------------
 
 /// Singleton (id = 1).
+/// État d'un service, écrit par le service lui-même et affiché dans le panel (jamais de secret).
+model ServiceStatus {
+  /// "twitch"
+  id          String   @id
+  /// CONNECTED | RECONNECTING | WAITING | ERROR | STOPPED
+  state       String
+  /// Raison de l'attente, compte connecté ou message d'erreur
+  detail      String   @default("")
+  /// Début de l'état actuel
+  since       DateTime @default(now())
+  /// Dernier signe de vie (toutes les 30 s au plus tard)
+  heartbeatAt DateTime @default(now())
+}
+
 model TwitchBotConfig {
   id                      Int       @id @default(1)
   username                String?

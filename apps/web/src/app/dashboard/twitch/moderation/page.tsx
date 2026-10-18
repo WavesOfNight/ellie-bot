@@ -4,6 +4,7 @@ import { getAiUsageHistory, getBotConfigStatus, getTwitchBotSettings, TWITCH_AI_
 import { AUTOMOD_LEVEL_DESCRIPTIONS, AUTOMOD_LEVELS } from "@ellie/database/shared";
 import { saveTwitchModerationAction } from "@/actions/twitch";
 import { ActionForm, SubmitButton } from "@/components/forms";
+import { loadTwitchStatus, TwitchStatusPanel } from "@/components/TwitchStatus";
 import { Card, Field, Notice, PageHeader, Toggle } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,7 @@ const LEVEL_LABELS = { OFF: "Désactivé", LOW: "Faible", MEDIUM: "Moyen", HIGH:
 
 export default async function TwitchModerationPage() {
   const [settings, status, usage] = await Promise.all([getTwitchBotSettings(), getBotConfigStatus(), getAiUsageHistory(TWITCH_AI_SCOPE, 7)]);
+  const twitchStatus = await loadTwitchStatus(settings);
   const today = usage.at(-1);
   const bounds = TWITCH_AI_BOUNDS;
 
@@ -21,6 +23,7 @@ export default async function TwitchModerationPage() {
       <PageHeader icon={Shield} title="Modération Twitch" subtitle="Escalade : 2 avertissements, puis timeout de 10 minutes, puis bannissement." />
       <ActionForm action={saveTwitchModerationAction} className="space-y-6">
         <Card title="Bot">
+          <TwitchStatusPanel status={twitchStatus} className="mb-4" />
           <div className="grid gap-4 md:grid-cols-2">
             <Toggle name="enabled" label="Bot Twitch activé" defaultChecked={settings.enabled} hint="Le bot se connecte au chat sous 5 secondes." />
             <Field label="Préfixe des commandes" htmlFor="prefix">

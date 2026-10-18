@@ -12,6 +12,7 @@ export * from "./dates.js";
 export * from "./economy.js";
 export * from "./guilds.js";
 export * from "./safe-fetch.js";
+export * from "./service-status.js";
 export * from "./twitch-bot-config.js";
 export * from "./twitch-giveaways.js";
 export * from "./twitch-stats.js";
