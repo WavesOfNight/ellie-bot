@@ -2,7 +2,7 @@ import { Sparkles } from "lucide-react";
 import { getTwitchBotSettings, TWITCH_BOT_SCOPES } from "@ellie/database";
 import { disconnectTwitchAccountAction, saveTwitchSettingsAction } from "@/actions/twitch";
 import { ActionForm, SubmitButton } from "@/components/forms";
-import { loadTwitchStatus, TwitchStatusPanel } from "@/components/TwitchStatus";
+import { loadTwitchStatus, TwitchDiscordLink, TwitchStatusPanel } from "@/components/TwitchStatus";
 import { Badge, Card, Field, Notice, PageHeader } from "@/components/ui";
 import { getBotGuilds, type DiscordGuild } from "@/lib/discord";
 import { appUrl } from "@/lib/url";
@@ -28,6 +28,9 @@ export default async function TwitchSettingsPage({ searchParams }: { searchParam
     <>
       <PageHeader icon={Sparkles} title="Paramètres Twitch" subtitle="Application, compte bot, chaîne et serveur Discord lié." />
       <TwitchStatusPanel status={status} className="mb-4" />
+      <div className="mb-4">
+        <TwitchDiscordLink linkedGuildId={settings.linkedGuildId} />
+      </div>
       {searchParams.connected ? (
         <div className="mb-4">
           <Notice tone="aqua">Compte Twitch connecté ✅</Notice>

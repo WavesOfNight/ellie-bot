@@ -130,7 +130,7 @@ describe("configuration du Cat Café (base temporaire)", () => {
     });
 
     const first = await catCafe.applyCatCafeConfig(guildId);
-    assert.deepEqual(first, { groups: 5, options: 39, levelRewards: 4, liveAlert: true });
+    assert.deepEqual(first, { groups: 5, options: 39, levelRewards: 4, liveAlert: true, twitchLinked: true });
 
     const panels = await client.prisma.reactionRoleMessage.findMany({ where: { guildId }, include: { groups: { include: { options: true } } } });
     assert.equal(panels.length, 1);
@@ -150,6 +150,8 @@ describe("configuration du Cat Café (base temporaire)", () => {
     assert.equal(guild.reportChannelId, channels.reports);
     assert.equal(guild.ticketCategoryId, channels.ticketCategory);
     assert.equal(guild.modLogChannelId, channels.logs);
+    assert.equal(guild.permanentInviteChannelId, channels.rules, "lien d'invitation (/invite, !discord) vers le règlement");
+    assert.equal((await client.prisma.twitchBotConfig.findUniqueOrThrow({ where: { id: 1 } })).linkedGuildId, guildId);
     assert.equal(splitIds(guild.ticketStaffRoleIds).length, 4);
     assert.ok(guild.rulesContent.length > 500 && guild.rulesContent.length <= 4000);
 
@@ -161,7 +163,7 @@ describe("configuration du Cat Café (base temporaire)", () => {
   it("peut être relancée sans doublons ni écrasement des niveaux et alertes", async () => {
     const { guildId } = catCafe.CAT_CAFE;
     const second = await catCafe.applyCatCafeConfig(guildId);
-    assert.deepEqual(second, { groups: 5, options: 39, levelRewards: 0, liveAlert: false });
+    assert.deepEqual(second, { groups: 5, options: 39, levelRewards: 0, liveAlert: false, twitchLinked: false });
     assert.equal(await client.prisma.reactionRoleMessage.count({ where: { guildId } }), 1);
     assert.equal(await client.prisma.reactionRoleGroup.count(), 5);
     assert.equal(await client.prisma.levelReward.count({ where: { guildId } }), 4);

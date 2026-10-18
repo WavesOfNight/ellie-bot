@@ -130,6 +130,7 @@ Le serveur a été construit par l'ancien bot (`/setup` du Cat Café) : les rôl
    - crée dans 🎀・choisis-tes-rôles les 5 menus **Pronoms, Couleur, Notifications, Passions, Jeux** avec les rôles du Cat Café (un bouton ouvre un menu à cocher, une seule couleur à la fois) ;
    - publie le **règlement** du Cat Café dans 📜・règlement, et dans ✅・vérification le bouton **« J'ai lu le règlement, j'entre ! »**, qui donne 🐾 Client·e du Café. Les anciens boutons de vérification sont retirés : il n'en reste qu'un ;
    - règle les **tickets** (catégorie 🎫 TICKETS, panneau dans 🆘・aide-et-questions, mention des Gardien·nes et des Anges gardien·nes), le **signalement anonyme**, les **transcriptions** et les **logs** (📋・logs-modération) ;
+   - crée le **lien d'invitation permanent** (vers 📜・règlement), utilisé par `/invite` et par `!discord` sur Twitch, et relie le bot Twitch au serveur ;
    - relie les rôles de niveau : 🍼 Chaton (niv. 1) → 🐈 Chat de salon (10) → 😼 Chat de gouttière (20) → ✨ Neko légendaire (35), et ajoute l'**alerte de live** dans 🔴・on-est-en-live, qui mentionne 🔴 Notif Lives ;
    - donne à Ellie le rôle **🤖 Robots du Café**, qui lui ouvre les salons des bots.
 8. La page **Diagnostic** vérifie ensuite tout : le rang du rôle d'Ellie, ses permissions dans chaque salon utilisé et le parcours des nouveaux (ils doivent voir le bouton ; le rôle d'accès ne doit pas être donné automatiquement à l'arrivée). Chaque ligne ❌ indique quoi corriger. Clique **« Relancer le diagnostic »** après une correction sur Discord.
@@ -143,7 +144,7 @@ Le serveur a été construit par l'ancien bot (`/setup` du Cat Café) : les rôl
 ## Étape 5 — Le reste (facultatif)
 
 - **Modules** : panel → ton serveur → Bienvenue, Modération, Niveaux, Commandes Perso, Giveaways, Starboard, Alertes… Tout est pris en compte en moins de 5 secondes.
-- **Bot Twitch** : crée une application sur <https://dev.twitch.tv/console/apps> (catégorie *Chat Bot*, redirection `https://ellie.reads-records.com/api/twitch/callback`), puis panel → **Bot Twitch → Paramètres** → **Se connecter avec Twitch** avec le compte du bot → `/mod nom_du_bot` dans le chat de missTsune → **Modération** → **Bot Twitch activé**.
+- **Bot Twitch** : crée une application sur <https://dev.twitch.tv/console/apps> (catégorie *Chat Bot*, redirection `https://ellie.reads-records.com/api/twitch/callback`), puis panel → **Bot Twitch → Paramètres** → **Se connecter avec Twitch** avec le compte du bot (pas celui de la streameuse), renseigne la **chaîne à rejoindre** et le **serveur Discord lié** → `/mod nom_du_bot` dans le chat de missTsune → **Modération** → **Bot Twitch activé**. L'encadré d'état en haut des pages Bot Twitch dit s'il est connecté et, sinon, pourquoi. `!discord` donne le lien créé sur la page **Invitation** du serveur Discord.
 - **Ellie (IA)** : dans la console Anthropic, crée un **espace de travail** (workspace) « Ellie » avec un plafond de dépenses mensuel, puis une **clé API rattachée à cet espace** (une clé non rattachée provoque l'erreur « not scoped to a workspace »). Panel → **Paramètres** → colle la clé, puis page **Ellie (IA)** du serveur → active-la et coche au moins un salon.
 
 ---

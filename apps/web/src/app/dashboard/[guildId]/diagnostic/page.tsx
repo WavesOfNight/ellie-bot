@@ -56,6 +56,7 @@ async function loadConfiguration(guildId: string) {
   use("Starboard", guild?.starboardChannelId, NOTIFY);
   if (ai?.enabled) for (const channelId of splitIds(ai.allowedChannelIds)) use("Ellie (IA)", channelId, ["VIEW_CHANNEL", "SEND_MESSAGES", "READ_MESSAGE_HISTORY"]);
   use("Salon vocal « créer ton salon »", guild?.hubVoiceChannelId, ["VIEW_CHANNEL", "CONNECT", "MOVE_MEMBERS", "MANAGE_CHANNELS"]);
+  use("Invitation permanente (/invite, !discord)", guild?.permanentInviteChannelId, ["VIEW_CHANNEL", "CREATE_INSTANT_INVITE"]);
 
   const given: GivenRole[] = [];
   if (guild?.rulesRoleId) given.push({ roleId: guild.rulesRoleId, source: "vérification" });
@@ -169,6 +170,7 @@ function CatCafeCard({ guildId }: { guildId: string }) {
             preuves-et-archives, logs dans 📋 logs-modération ;
           </li>
           <li>rôles de niveau 🍼 Chaton (niv. 1) → 🐈 Chat de salon (10) → 😼 Chat de gouttière (20) → ✨ Neko légendaire (35), et alerte de live qui ping 🔴 Notif Lives ;</li>
+          <li>lien d&apos;invitation permanent vers 📜 règlement (utilisé par /invite et par !discord sur Twitch), et bot Twitch relié au serveur ;</li>
           <li>Ellie reçoit le rôle 🤖 Robots du Café, qui lui ouvre les salons des bots.</li>
         </ul>
         <p>

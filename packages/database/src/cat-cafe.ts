@@ -214,6 +214,8 @@ export interface CatCafeResult {
   levelRewards: number;
   /** Alerte de live Twitch créée (false si une alerte Twitch existait déjà) */
   liveAlert: boolean;
+  /** Bot Twitch relié à ce serveur (false s'il était déjà relié à un serveur) */
+  twitchLinked: boolean;
 }
 
 /** Garde l'identifiant d'un message publié tant que son salon ne change pas. */
@@ -222,7 +224,8 @@ const keepMessage = (channelId: string | null, messageId: string | null, target:
 /**
  * Applique la configuration du Cat Café. Les réglages tickets, règlement et vérification sont
  * remplacés ; le panneau de rôles est aligné sur la structure du serveur ; les récompenses de
- * niveau et l'alerte de live ne sont créées que si le serveur n'en a pas encore.
+ * niveau, l'alerte de live, le salon de l'invitation permanente (📜 règlement, pour /invite et
+ * !discord) et le serveur lié au bot Twitch ne sont réglés que s'ils ne l'étaient pas encore.
  */
 export async function applyCatCafeConfig(guildId: string): Promise<CatCafeResult> {
   if (guildId !== CAT_CAFE.guildId) throw new Error("Ce serveur n'est pas le Cat Café de missTsune.");
@@ -234,6 +237,7 @@ export async function applyCatCafeConfig(guildId: string): Promise<CatCafeResult
       where: { id: guildId },
       data: {
         modLogChannelId: previous.modLogChannelId ?? preset.channels.logs,
+        permanentInviteChannelId: previous.permanentInviteChannelId ?? preset.channels.rules,
         ticketCategoryId: preset.channels.ticketCategory,
         ticketStaffRoleIds: preset.ticketStaffRoleIds.join(","),
         ticketPingRoleIds: preset.ticketPingRoleIds.join(","),
@@ -262,14 +266,17 @@ export async function applyCatCafeConfig(guildId: string): Promise<CatCafeResult
       ? 0
       : (await tx.levelReward.createMany({ data: preset.levelRewards.map((reward) => ({ guildId, ...reward })) })).count;
 
+    const twitch = await tx.twitchBotConfig.upsert({ where: { id: 1 }, create: { id: 1 }, update: {} });
+    const twitchLinked = !twitch.linkedGuildId;
+    if (twitchLinked) await tx.twitchBotConfig.update({ where: { id: 1 }, data: { linkedGuildId: guildId } });
+
     let liveAlert = false;
     if (!(await tx.socialAlert.count({ where: { guildId, platform: "TWITCH" } }))) {
-      const twitch = await tx.twitchBotConfig.findUnique({ where: { id: 1 } });
       await tx.socialAlert.create({
         data: {
           guildId,
           platform: "TWITCH",
-          channelRef: (twitch?.channelName || preset.liveAlert.twitchLogin).toLowerCase(),
+          channelRef: (twitch.channelName || preset.liveAlert.twitchLogin).toLowerCase(),
           discordChannelId: preset.channels.lives,
           message: preset.liveAlert.message,
         },
@@ -277,7 +284,7 @@ export async function applyCatCafeConfig(guildId: string): Promise<CatCafeResult
       liveAlert = true;
     }
 
-    return { ...panel, levelRewards, liveAlert };
+    return { ...panel, levelRewards, liveAlert, twitchLinked };
   });
 }
 

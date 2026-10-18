@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { applyCatCafeConfig, CAT_CAFE, prisma } from "@ellie/database";
 import { countPanelComponents, isValidEmoji, ROLE_GROUP_DISPLAYS, ROLE_PANEL_LIMITS } from "@ellie/database/shared";
 import { describePublication, publishRulesAndVerification, publishTicketPanel } from "@/lib/community";
-import { addBotRole, deleteChannelMessage, getBotRoleIds, invalidateDiscordCache } from "@/lib/discord";
+import { addBotRole, createChannelInvite, deleteChannelMessage, getBotRoleIds, invalidateDiscordCache } from "@/lib/discord";
 import { checkbox, fail, FormError, handle, integer, ok, oneOf, snowflake, text, type ActionState } from "@/lib/forms";
 import { guildFromForm, guildIdSets } from "@/lib/guild";
 
@@ -292,6 +292,7 @@ export async function applyCatCafeAction(_state: ActionState, form: FormData): P
     const done = [`${result.groups} menus de rôles (${result.options} rôles)`, "règlement et vérification", "tickets et signalements"];
     if (result.levelRewards) done.push(`${result.levelRewards} rôles de niveau`);
     if (result.liveAlert) done.push("alerte de live Twitch");
+    if (result.twitchLinked) done.push("bot Twitch relié au serveur");
 
     const problems: string[] = [];
     const summary = await publishRulesAndVerification(guildId).catch((error: unknown) => {
@@ -299,12 +300,23 @@ export async function applyCatCafeAction(_state: ActionState, form: FormData): P
       return null;
     });
     await publishTicketPanel(guildId).catch((error: unknown) => problems.push(`panneau d'aide : ${readableError(error)}`));
+    // Lien permanent utilisé par /invite et par !discord sur Twitch (sinon le bot Discord le crée sous 10 min).
+    const invite = await prisma.guild.findUniqueOrThrow({ where: { id: guildId }, select: { permanentInviteChannelId: true, permanentInviteCode: true } });
+    if (invite.permanentInviteChannelId && !invite.permanentInviteCode) {
+      await createChannelInvite(invite.permanentInviteChannelId)
+        .then(async (code) => {
+          await prisma.guild.update({ where: { id: guildId }, data: { permanentInviteCode: code } });
+          done.push(`lien d'invitation https://discord.gg/${code}`);
+        })
+        .catch((error: unknown) => problems.push(`lien d'invitation : ${readableError(error)}`));
+    }
     const botRoles = await getBotRoleIds(guildId).catch(() => [] as string[]);
     if (!botRoles.includes(CAT_CAFE.roles.bots)) {
       await addBotRole(guildId, CAT_CAFE.roles.bots).catch((error: unknown) => problems.push(`rôle 🤖 Robots du Café pour Ellie : ${readableError(error)}`));
     }
 
-    for (const page of ["diagnostic", "reaction-roles", "tickets", "welcome", "levels", "alerts", "moderation"]) revalidatePath(path(guildId, page));
+    for (const page of ["diagnostic", "reaction-roles", "tickets", "welcome", "levels", "alerts", "moderation", "invite"]) revalidatePath(path(guildId, page));
+    revalidatePath("/dashboard/twitch", "layout");
     const message = `Configuration du Cat Café appliquée : ${done.join(", ")}.${summary ? ` ${describePublication(summary)}.` : ""}`;
     return problems.length
       ? fail(`${message} À corriger : ${problems.join(" · ")}. Le diagnostic ci-dessous indique quoi régler.`)

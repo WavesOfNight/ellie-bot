@@ -2,7 +2,7 @@ import Link from "next/link";
 import { LayoutDashboard, MessageSquare, ShieldAlert, Terminal } from "lucide-react";
 import { getTwitchBotSettings, getTwitchDailyStats } from "@ellie/database";
 import { AutoRefresh } from "@/components/AutoRefresh";
-import { loadTwitchStatus, TwitchStatusBadge, TwitchStatusPanel } from "@/components/TwitchStatus";
+import { loadTwitchStatus, TwitchDiscordLink, TwitchStatusBadge, TwitchStatusPanel } from "@/components/TwitchStatus";
 import { Card, Notice, PageHeader, StatCard, TableWrapper } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +27,10 @@ export default async function TwitchDashboard() {
         actions={<TwitchStatusBadge status={status} />}
       />
       <AutoRefresh seconds={10} />
-      <TwitchStatusPanel status={status} className="mb-6" />
+      <TwitchStatusPanel status={status} className="mb-4" />
+      <div className="mb-6">
+        <TwitchDiscordLink linkedGuildId={settings.linkedGuildId} />
+      </div>
       {!ready ? (
         <div className="mb-6">
           <Notice>

@@ -3,7 +3,7 @@ import { communityLabel, MAX_LEVEL, STREAMER_NAME } from "@ellie/database/shared
 import { isModeratorOrBroadcaster, type ChatMessage, type TwitchContext } from "./context.js";
 import { getDiscordTopFive, getLinkedInviteCode } from "./discord-link.js";
 import { formatLongDuration } from "./format.js";
-import { logError } from "./log.js";
+import { logError, logWarn } from "./log.js";
 
 const BUILTIN_COOLDOWN_MS = 5_000;
 const builtinLastUse = new Map<string, number>();
@@ -17,7 +17,15 @@ function excluded(context: TwitchContext): string[] {
 const BUILTINS: Record<string, Builtin> = {
   async discord(context) {
     const code = await getLinkedInviteCode(context.config.linkedGuildId);
-    if (!code) return "Le serveur Discord n'est pas encore lié au bot.";
+    if (!code) {
+      // La marche à suivre est affichée dans le panel (Bot Twitch) ; le chat reçoit un message neutre.
+      logWarn(
+        context.config.linkedGuildId
+          ? "!discord : aucun lien d'invitation permanent (panel → serveur Discord → Invitation)"
+          : "!discord : aucun serveur Discord lié (panel → Bot Twitch → Paramètres)",
+      );
+      return "💜 Le lien du Discord n'est pas encore prêt, reviens très bientôt !";
+    }
     const community = communityLabel((await getAppSettings()).communityName);
     return `💜 Rejoins ${community} sur Discord : https://discord.gg/${code}`;
   },

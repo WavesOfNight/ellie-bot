@@ -7,6 +7,7 @@
  */
 
 export const DISCORD_PERMISSIONS = {
+  CREATE_INSTANT_INVITE: 1n << 0n,
   KICK_MEMBERS: 1n << 1n,
   BAN_MEMBERS: 1n << 2n,
   ADMINISTRATOR: 1n << 3n,
@@ -27,6 +28,7 @@ export type PermissionName = keyof typeof DISCORD_PERMISSIONS;
 
 /** Libellés de l'interface française de Discord. */
 export const PERMISSION_LABELS: Record<PermissionName, string> = {
+  CREATE_INSTANT_INVITE: "Créer une invitation",
   KICK_MEMBERS: "Expulser des membres",
   BAN_MEMBERS: "Bannir des membres",
   ADMINISTRATOR: "Administrateur",

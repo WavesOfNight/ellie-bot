@@ -1,7 +1,8 @@
 import "server-only";
+import Link from "next/link";
 import { CircleCheck, CircleX, TriangleAlert } from "lucide-react";
-import { describeTwitchStatus, getServiceStatus, type ServiceStatusView } from "@ellie/database";
-import { Badge, cn, formatDate } from "./ui";
+import { describeTwitchStatus, getServiceStatus, prisma, type ServiceStatusView } from "@ellie/database";
+import { Badge, cn, formatDate, Notice } from "./ui";
 
 const LEVELS = {
   ok: { icon: CircleCheck, box: "border-aqua-200 bg-aqua-50 text-aqua-800", badge: "aqua" },
@@ -29,5 +30,37 @@ export function TwitchStatusPanel({ status, className }: { status: ServiceStatus
         {status.since ? <p className="mt-1 text-xs opacity-80">Depuis le {formatDate(status.since)}</p> : null}
       </div>
     </div>
+  );
+}
+
+/** Liaison avec Discord, nécessaire pour !discord (lien d'invitation), !dleaderboard et les logs des sanctions. */
+export async function TwitchDiscordLink({ linkedGuildId }: { linkedGuildId: string | null }) {
+  if (!linkedGuildId) {
+    return (
+      <Notice tone="blush">
+        Aucun serveur Discord lié : <strong>!discord</strong>, <strong>!dleaderboard</strong> et les logs des sanctions sont désactivés. Choisis-le dans{" "}
+        <Link href="/dashboard/twitch/settings" className="font-semibold underline">
+          Paramètres
+        </Link>
+        .
+      </Notice>
+    );
+  }
+  const guild = await prisma.guild.findUnique({ where: { id: linkedGuildId }, select: { permanentInviteCode: true } });
+  if (!guild?.permanentInviteCode) {
+    return (
+      <Notice tone="blush">
+        <strong>!discord</strong> n&apos;a pas encore de lien à donner : crée-le sur la page{" "}
+        <Link href={`/dashboard/${linkedGuildId}/invite`} className="font-semibold underline">
+          Invitation
+        </Link>{" "}
+        du serveur Discord.
+      </Notice>
+    );
+  }
+  return (
+    <Notice tone="aqua">
+      <strong>!discord</strong> donne le lien <span className="break-all font-mono">https://discord.gg/{guild.permanentInviteCode}</span>
+    </Notice>
   );
 }
