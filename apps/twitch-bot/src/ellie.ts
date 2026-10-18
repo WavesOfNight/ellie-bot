@@ -26,6 +26,7 @@ export async function handleEllieTwitch(context: TwitchContext, message: ChatMes
         dailyReplyCap: config.aiDailyReplyCap,
       },
       canReact: false,
+      silentOnError: true,
       logContext: `twitch chaîne=${context.channelLogin}`,
       input: {
         platform: "twitch",

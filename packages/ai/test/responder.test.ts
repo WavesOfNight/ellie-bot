@@ -102,6 +102,29 @@ describe("orchestration (cooldowns, plafond, comptage)", () => {
     assert.equal(client.requests.length, 1);
   });
 
+  it("panne technique : réplique « bug » sur Discord, silence sur Twitch (rien de compté)", async () => {
+    const make = () => {
+      const store = new MemoryUsageStore();
+      const client = new FakeClaudeClient(new Error("API en panne"));
+      return { store, responder: new EllieResponder({ store, getClient: async () => client, random: () => 0, logger: silentLogger }) };
+    };
+    const onDiscord = await make().responder.respond(discordRequest());
+    assert.ok(onDiscord.kind === "reply" && FALLBACK_LINES.erreur.includes(onDiscord.text));
+
+    const { store, responder } = make();
+    const onTwitch = await responder.respond({
+      scope: "TWITCH",
+      userKey: "twitch:viewer",
+      limits: { userCooldownSeconds: 30, globalCooldownSeconds: 10, dailyReplyCap: 100 },
+      canReact: false,
+      silentOnError: true,
+      logContext: "twitch",
+      input: { platform: "twitch", model: "claude-haiku-5-5", authorName: "viewer", message: "salut" },
+    });
+    assert.deepEqual(onTwitch, { kind: "silent", reason: "erreur" });
+    assert.ok(store.recorded.every((entry) => entry.delta.replies === 0));
+  });
+
   it("sans clé API : silence, aucun appel", async () => {
     const responder = new EllieResponder({ store: new MemoryUsageStore(), getClient: async () => null, logger: silentLogger });
     assert.deepEqual(await responder.respond(discordRequest()), { kind: "silent", reason: "pas_de_cle" });

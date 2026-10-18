@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { ChatBuffer } from "../src/context.js";
-import { chatLine, countEmotes, formatLongDuration } from "../src/format.js";
+import { chatLine, countEmotes, formatLongDuration, viewerUptimeLine } from "../src/format.js";
 import { HelixError } from "../src/helix.js";
 import { explainConnectionError } from "../src/supervisor.js";
 
@@ -48,5 +48,30 @@ describe("erreurs de connexion affichées dans le panel", () => {
 
   it("garde le message d'origine sinon", () => {
     assert.equal(explainConnectionError(new Error("compte bot « x » ou chaîne « y » introuvable sur Twitch")), "compte bot « x » ou chaîne « y » introuvable sur Twitch");
+  });
+});
+
+describe("!myuptime", () => {
+  const now = new Date("2026-10-18T21:00:00Z");
+  const stream = { id: "live-42", startedAt: new Date("2026-10-18T19:00:00Z") };
+  const base = { displayName: "Lou", streamerName: "missTsune", isBroadcaster: false, now };
+
+  it("depuis l'arrivée du viewer sur ce live, avec son temps total", () => {
+    const viewer = { sessionStreamId: "live-42", sessionStartedAt: new Date("2026-10-18T19:47:00Z"), watchMinutes: 600 };
+    assert.equal(viewerUptimeLine({ ...base, stream, viewer }), "@Lou, tu regardes le live depuis 1 h, 13 min 💜 (10 h au total sur la chaîne)");
+  });
+
+  it("arrivée notée lors d'un ancien live ou à l'instant : bienvenue", () => {
+    const old = { sessionStreamId: "live-41", sessionStartedAt: new Date("2026-10-17T19:00:00Z"), watchMinutes: 0 };
+    assert.equal(viewerUptimeLine({ ...base, stream, viewer: old }), "@Lou, tu viens d'arriver sur le live, bienvenue 💜");
+    assert.equal(viewerUptimeLine({ ...base, stream, viewer: null }), "@Lou, tu viens d'arriver sur le live, bienvenue 💜");
+  });
+
+  it("hors live et streameuse", () => {
+    assert.equal(
+      viewerUptimeLine({ ...base, stream: null, viewer: { sessionStreamId: null, sessionStartedAt: null, watchMinutes: 90 } }),
+      "@Lou, missTsune n'est pas en live pour le moment… mais tu as déjà passé 1 h, 30 min au total sur la chaîne 💜",
+    );
+    assert.equal(viewerUptimeLine({ ...base, displayName: "missTsune", isBroadcaster: true, stream, viewer: null }), "@missTsune, c'est toi qui streames 😄 En live depuis 2 h.");
   });
 });

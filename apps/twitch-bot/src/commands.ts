@@ -1,8 +1,8 @@
-import { getAppSettings, getTwitchChatterRank, getTwitchLeaderboard, incrementTwitchDailyStat, prisma } from "@ellie/database";
+import { getAppSettings, getTwitchChatterRank, getTwitchLeaderboard, getTwitchViewerTime, incrementTwitchDailyStat, prisma } from "@ellie/database";
 import { communityLabel, MAX_LEVEL, STREAMER_NAME } from "@ellie/database/shared";
 import { isModeratorOrBroadcaster, type ChatMessage, type TwitchContext } from "./context.js";
 import { getDiscordTopFive, getLinkedInviteCode } from "./discord-link.js";
-import { formatLongDuration } from "./format.js";
+import { formatLongDuration, viewerUptimeLine } from "./format.js";
 import { logError, logWarn } from "./log.js";
 
 const BUILTIN_COOLDOWN_MS = 5_000;
@@ -33,7 +33,7 @@ const BUILTINS: Record<string, Builtin> = {
   async help(context) {
     const prefix = context.config.prefix;
     const custom = await prisma.twitchCommand.findMany({ select: { name: true }, orderBy: { name: "asc" } });
-    const builtins = ["discord", "uptime", "followage", "leaderboard", "dleaderboard", "rank", "so"];
+    const builtins = ["discord", "uptime", "myuptime", "followage", "leaderboard", "dleaderboard", "rank", "so"];
     const names = [...builtins, ...custom.map((command) => command.name)].map((name) => `${prefix}${name}`);
     return `📚 Commandes : ${names.join(" · ")}`;
   },
@@ -42,6 +42,18 @@ const BUILTINS: Record<string, Builtin> = {
     const stream = await context.helix.getStream(context.broadcasterId);
     if (!stream) return `${STREAMER_NAME} n'est pas en live pour le moment.`;
     return `⏱️ ${STREAMER_NAME} est en live depuis ${formatLongDuration(Date.now() - new Date(stream.started_at).getTime())}.`;
+  },
+
+  async myuptime(context, message) {
+    const [stream, viewer] = await Promise.all([context.helix.getStream(context.broadcasterId), getTwitchViewerTime(message.login)]);
+    return viewerUptimeLine({
+      displayName: message.displayName,
+      streamerName: STREAMER_NAME,
+      isBroadcaster: message.login === context.channelLogin,
+      stream: stream ? { id: stream.id, startedAt: new Date(stream.started_at) } : null,
+      viewer,
+      now: new Date(),
+    });
   },
 
   async followage(context, message) {

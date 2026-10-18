@@ -1,6 +1,6 @@
 import tmi from "tmi.js";
 import { isKnownChatBot } from "@ellie/ai";
-import { enterTwitchGiveaway, incrementTwitchDailyStat, recordTwitchChatMessage, type TwitchBotConfig } from "@ellie/database";
+import { enterTwitchGiveaway, incrementTwitchDailyStat, markTwitchViewersPresent, recordTwitchChatMessage, type TwitchBotConfig } from "@ellie/database";
 import { BOT_PERSONA_NAME } from "@ellie/database/shared";
 import { moderateMessage } from "./automod.js";
 import { handleCommand } from "./commands.js";
@@ -121,6 +121,8 @@ export class TwitchBot {
 
       if (message.login !== context.botLogin && !isKnownChatBot(message.login)) {
         const xp = await recordTwitchChatMessage(message.login);
+        const live = this.tasks.getLiveStream();
+        if (live) await markTwitchViewersPresent([message.login], live.id);
         if (xp.leveledUp) await context.say(`🎉 GG @${message.displayName} ! Tu passes au niveau ${xp.level} sur Twitch !`);
       }
 

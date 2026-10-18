@@ -39,6 +39,13 @@ describe("nettoyage des réponses", () => {
     assert.ok(out.includes("discord pour nous rejoindre."));
   });
 
+  it("Twitch : la mise en forme Markdown est retirée (Twitch l'afficherait telle quelle)", () => {
+    assert.equal(sanitizeReply("**Salut** toi, *rit* et ~~non~~ `code`", twitch), "Salut toi, rit et non code");
+    assert.equal(sanitizeReply("Mes jeux :\n- Valorant\n- Minecraft", twitch), "Mes jeux : Valorant Minecraft");
+    assert.equal(sanitizeReply("GG miss_tsune_ et 5*3*2", twitch), "GG miss_tsune_ et 5*3*2");
+    assert.equal(sanitizeReply("**Salut** toi", discord), "**Salut** toi", "Discord affiche le Markdown : on le garde");
+  });
+
   it("tronque proprement (fin de phrase ou de mot)", () => {
     const text = "Première phrase assez longue pour remplir. Deuxième phrase qui dépasse largement la limite fixée ici.";
     assert.equal(truncateNicely(text, 60), "Première phrase assez longue pour remplir.");

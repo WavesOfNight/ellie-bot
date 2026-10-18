@@ -35,6 +35,23 @@ function stripWrappingQuotes(text: string): string {
   return text;
 }
 
+/**
+ * Retire la mise en forme Markdown, que Twitch affiche telle quelle (« **salut** », « *rit* ») :
+ * gras, italique, barré, code, titres, citations et puces. Les pseudos à tirets bas restent intacts.
+ */
+export function stripMarkdown(text: string): string {
+  return text
+    .replace(/```[\w-]*\n?([\s\S]*?)```/g, "$1")
+    .replace(/`([^`\n]+)`/g, "$1")
+    .replace(/(\*\*|__)(?=\S)([^\n]*?\S)\1/g, "$2")
+    .replace(/~~(?=\S)([^\n]*?\S)~~/g, "$1")
+    .replace(/(^|[^\w*])\*(?=\S)([^*\n]*?\S)\*(?![\w*])/g, "$1$2")
+    .replace(/(^|[^\w_])_(?=\S)([^_\n]*?\S)_(?![\w_])/g, "$1$2")
+    .replace(/^[ \t]*#{1,6}[ \t]+/gm, "")
+    .replace(/^[ \t]*>[ \t]?/gm, "")
+    .replace(/^[ \t]*[-*+•][ \t]+/gm, "");
+}
+
 /** Tronque à une fin de phrase si possible, sinon à une fin de mot (avec « … »). */
 export function truncateNicely(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
@@ -68,6 +85,7 @@ export function sanitizeReply(text: string, options: SanitizeOptions): string {
 
   if (options.platform === "twitch") {
     const prefix = options.commandPrefix || "!";
+    result = stripMarkdown(result);
     result = result.replace(/\s*[\r\n]+\s*/g, " ");
     result = result.replace(new RegExp(`(^|\\s)(?:${escapeRegex(prefix)})+(?=\\S)`, "g"), "$1");
     result = result.replace(/^[\s/.]+/, "");

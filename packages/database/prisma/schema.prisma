@@ -635,6 +635,9 @@ model TwitchChatterStat {
   lastXpAt     DateTime?
   watchMinutes Int       @default(0)
   lastSeenAt   DateTime  @default(now())
+  /// Live en cours (!myuptime) : identifiant du live et première présence du viewer pendant ce live
+  sessionStreamId  String?
+  sessionStartedAt DateTime?
 
   @@index([xp])
 }

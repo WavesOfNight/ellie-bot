@@ -30,7 +30,7 @@ export async function saveTwitchCommandAction(_state: ActionState, form: FormDat
     await requireOwner();
     const name = text(form, "name", { required: "Le nom est obligatoire." }).toLowerCase().replace(/^!/, "");
     if (!/^[a-z0-9_-]{1,32}$/.test(name)) throw new FormError("Nom invalide : lettres minuscules, chiffres, - et _.");
-    const reserved = ["discord", "help", "uptime", "followage", "fc", "leaderboard", "dleaderboard", "rank", "so"];
+    const reserved = ["discord", "help", "uptime", "myuptime", "followage", "fc", "leaderboard", "dleaderboard", "rank", "so"];
     if (reserved.includes(name)) throw new FormError(`« ${name} » est une commande intégrée.`);
     const data = {
       name,

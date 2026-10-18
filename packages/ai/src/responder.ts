@@ -3,7 +3,7 @@ import { getConfiguredClaudeClient, type EllieClaudeClient } from "./client.js";
 import { pickFallbackLine } from "./fallback-lines.js";
 import { BUSY, ConcurrencyLimiter, CooldownTracker, SlidingWindowLimiter } from "./limits.js";
 import { consoleLogger, type EllieLogger } from "./logger.js";
-import { generateEllieReply, type EllieReplyResult, type GenerateEllieReplyInput } from "./reply.js";
+import { generateEllieReply, type EllieReplyResult, type GenerateEllieReplyInput, type ReplyCategory } from "./reply.js";
 import { prismaUsageStore, type UsageStore } from "./usage-store.js";
 
 export interface ResponderLimits {
@@ -28,12 +28,17 @@ export interface EllieRespondRequest {
   input: GenerateEllieReplyInput;
   /** Appelé juste avant la génération (ex. indicateur « en train d'écrire » sur Discord). */
   onGenerate?: () => void;
+  /**
+   * Twitch : en cas de panne technique (API, clé, réponse vide), rester silencieuse plutôt que de
+   * publier une réplique « bug » dans le chat. L'erreur est journalisée.
+   */
+  silentOnError?: boolean;
 }
 
 export type EllieAction =
   | { kind: "reply"; text: string; result: EllieReplyResult | null }
   | { kind: "react"; emoji: "⏳" | "💤" }
-  | { kind: "silent"; reason: "pas_de_cle" | "cooldown" | "plafond" | "occupe" };
+  | { kind: "silent"; reason: "pas_de_cle" | "cooldown" | "plafond" | "occupe" | "erreur" };
 
 export interface ResponderDeps {
   store?: UsageStore;
@@ -46,6 +51,8 @@ export interface ResponderDeps {
 }
 
 const NO_KEY_WARNING_INTERVAL_MS = 10 * 60_000;
+/** Pannes techniques : la réplique de secours parle de « bug », sans rapport avec le message. */
+const TECHNICAL_FAILURES: ReadonlySet<ReplyCategory> = new Set(["erreur_api", "cle_invalide", "vide", "modele_invalide"]);
 
 /**
  * Orchestration commune à Discord et Twitch : cooldowns, plafond quotidien, concurrence,
@@ -123,10 +130,11 @@ export class EllieResponder {
       return { kind: "silent", reason: "occupe" };
     }
     if (result.category === "pas_de_cle" || !result.text) return { kind: "silent", reason: "pas_de_cle" };
+    const silenced = Boolean(request.silentOnError) && TECHNICAL_FAILURES.has(result.category);
 
     if (result.apiCalls > 0) {
       await this.store.record(request.scope, date, {
-        replies: 1,
+        replies: silenced ? 0 : 1,
         inputTokens: result.usage.inputTokens,
         outputTokens: result.usage.outputTokens,
         cacheReadTokens: result.usage.cacheReadTokens,
@@ -138,8 +146,9 @@ export class EllieResponder {
       `${request.logContext} modèle=${result.model} durée=${result.durationMs}ms appels=${result.apiCalls} ` +
         `entrée=${result.usage.inputTokens} sortie=${result.usage.outputTokens} cache_lu=${result.usage.cacheReadTokens} ` +
         `cache_écrit=${result.usage.cacheWriteTokens} résultat=${result.category} ` +
-        `longueur_message=${request.input.message.length} longueur_réponse=${result.text.length}`,
+        `longueur_message=${request.input.message.length} longueur_réponse=${result.text.length}${silenced ? " envoi=aucun (panne technique)" : ""}`,
     );
+    if (silenced) return { kind: "silent", reason: "erreur" };
     return { kind: "reply", text: result.text, result };
   }
 

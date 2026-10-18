@@ -73,6 +73,29 @@ export async function addTwitchWatchMinutes(usernames: readonly string[], minute
   }
 }
 
+/**
+ * Note la première présence de spectateurs pendant ce live (message dans le chat ou liste des
+ * chatters), pour !myuptime. Ceux déjà notés pour ce live gardent leur heure d'arrivée.
+ */
+export async function markTwitchViewersPresent(usernames: readonly string[], streamId: string, now = new Date()): Promise<void> {
+  const logins = [...new Set(usernames.map((name) => name.toLowerCase()))];
+  for (let i = 0; i < logins.length; i += 500) {
+    await prisma.twitchChatterStat.updateMany({
+      // `not` exclut aussi les valeurs nulles en SQL : d'où le cas « aucun live noté » à part.
+      where: { username: { in: logins.slice(i, i + 500) }, OR: [{ sessionStreamId: null }, { sessionStreamId: { not: streamId } }] },
+      data: { sessionStreamId: streamId, sessionStartedAt: now },
+    });
+  }
+}
+
+/** Arrivée sur le live en cours et temps de visionnage total d'un spectateur. */
+export async function getTwitchViewerTime(username: string) {
+  return prisma.twitchChatterStat.findUnique({
+    where: { username: username.toLowerCase() },
+    select: { sessionStreamId: true, sessionStartedAt: true, watchMinutes: true },
+  });
+}
+
 export async function getTwitchLeaderboard(limit = 5, excludeUsernames: readonly string[] = []) {
   return prisma.twitchChatterStat.findMany({
     where: { xp: { gt: 0 }, username: { notIn: excludeUsernames.map((name) => name.toLowerCase()) } },

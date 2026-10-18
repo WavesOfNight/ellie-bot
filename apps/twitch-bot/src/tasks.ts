@@ -4,6 +4,7 @@ import {
   getPendingTwitchGiveawayAnnouncements,
   listEnabledTwitchTimers,
   markTwitchGiveawayAnnounced,
+  markTwitchViewersPresent,
   markTwitchTimerSent,
   updateTwitchBotSettings,
 } from "@ellie/database";
@@ -21,6 +22,7 @@ export class TwitchTasks {
   private readonly startedAt = Date.now();
   private subscriptionsUnavailableLogged = false;
   private activeGiveaway: { id: number; keyword: string } | null = null;
+  private liveStream: { id: string; startedAt: Date } | null = null;
 
   constructor(private readonly getContext: () => TwitchContext | null) {}
 
@@ -29,6 +31,7 @@ export class TwitchTasks {
     this.every(5 * 60_000, "temps de visionnage", () => this.creditWatchTime(), false);
     this.every(60_000, "follows et abonnés", () => this.pollFollowsAndSubs());
     this.every(5_000, "annonces de giveaways", () => this.announceGiveaways());
+    this.every(60_000, "état du live", () => this.refreshLiveStream());
   }
 
   stop(): void {
@@ -39,6 +42,11 @@ export class TwitchTasks {
   /** Compte les messages du chat (condition « minimum de messages » des timers). */
   countMessage(): void {
     for (const [id, count] of this.messagesSinceTimer) this.messagesSinceTimer.set(id, count + 1);
+  }
+
+  /** Live en cours (rafraîchi toutes les minutes), `null` hors live. */
+  getLiveStream(): { id: string; startedAt: Date } | null {
+    return this.liveStream;
   }
 
   /** Mot-clé du giveaway actif (mis à jour toutes les 5 s). */
@@ -80,15 +88,23 @@ export class TwitchTasks {
     }
   }
 
+  private async refreshLiveStream(): Promise<void> {
+    const context = this.getContext();
+    if (!context) return;
+    const stream = await context.helix.getStream(context.broadcasterId);
+    this.liveStream = stream ? { id: stream.id, startedAt: new Date(stream.started_at) } : null;
+  }
+
+  /** Temps de visionnage des spectateurs présents, et heure d'arrivée sur le live pour !myuptime. */
   private async creditWatchTime(): Promise<void> {
     const context = this.getContext();
     if (!context) return;
-    if (!(await context.helix.getStream(context.broadcasterId))) return;
+    await this.refreshLiveStream();
+    if (!this.liveStream) return;
     const chatters = await context.helix.getChatters(context.broadcasterId, context.botUserId);
-    await addTwitchWatchMinutes(
-      chatters.filter((login) => login !== context.botLogin),
-      5,
-    );
+    const viewers = chatters.filter((login) => login !== context.botLogin);
+    await addTwitchWatchMinutes(viewers, 5);
+    await markTwitchViewersPresent(viewers, this.liveStream.id);
   }
 
   private async pollFollowsAndSubs(): Promise<void> {
